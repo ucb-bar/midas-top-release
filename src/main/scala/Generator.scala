@@ -60,7 +60,15 @@ object MidasTopGenerator extends Generator {
 
   //TODO: Do this better..
   midasNames.hostPlatform match {
-    case "Sim" => StroberCompiler compile (sArgs, SimWrapper(targetGenerator)(hostParams))
-    case "Zynq" => StroberCompiler compile (sArgs, ZynqShim(targetGenerator)(hostParams))
+    case "Sim" => StroberCompiler compile (
+      sArgs,
+      SimWrapper(targetGenerator)(hostParams),
+      false // snapshot
+    )
+    case "Zynq" => StroberCompiler compile (
+      sArgs,
+      ZynqShim(targetGenerator)(hostParams),
+      false // snapshot
+    )
   }
 }
