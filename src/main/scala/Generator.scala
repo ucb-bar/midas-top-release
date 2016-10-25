@@ -1,74 +1,58 @@
-
 package MidasTop
 
-import Chisel._
 import cde._
 import rocketchip._
-import uncore.tilelink2.LazyModule
-import strober.{StroberCompiler, ZynqShim, SimWrapper}
+import testchipip._
+import diplomacy.LazyModule
+import util.{HasGeneratorUtilities, ParsedInputNames}
+import strober.StroberCompiler
 import java.io.File
 
-class MidasTop(p: Parameters) extends ExampleTop(p) {
-  override lazy val module = new ExampleTopModule(p, this, new ExampleTopBundle(p, _))
+class MidasTop(q: Parameters) extends BaseTop(q)
+    with PeripheryBootROM with PeripheryCoreplexLocalInterrupter
+    with PeripherySerial with PeripheryMasterMem {
+  override lazy val module = new MidasTopModule(p, this, new MidasTopBundle(p))
 }
 
-case class MidasParsedInputNames(
-    hostPlatform: String,
-    hostPlatformConfig: String)
+class MidasTopBundle(p: Parameters) extends BaseTopBundle(p)
+    with PeripheryBootROMBundle with PeripheryCoreplexLocalInterrupterBundle
+    with PeripheryMasterMemBundle with PeripherySerialBundle {
+  override def cloneType = new MidasTopBundle(p).asInstanceOf[this.type]
+}
+
+class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle](p: Parameters, l: L, b: => B)
+  extends BaseTopModule(p, l, b)
+  with PeripheryBootROMModule with PeripheryCoreplexLocalInterrupterModule
+  with PeripheryMasterMemModule with PeripherySerialModule
+  with HardwiredResetVector with DirectConnection with NoDebug
 
 trait HasMidasGeneratorUtilites extends HasGeneratorUtilities {
-  def getGenerator(project:String, className: String, params: Parameters) =
-    LazyModule(Class.forName(s"$project.$className")
+  def getGenerator(targetNames: ParsedInputNames, params: Parameters) =
+    LazyModule(Class.forName(targetNames.fullTopModuleClass)
       .getConstructor(classOf[cde.Parameters])
       .newInstance(params)
       .asInstanceOf[LazyModule]).module
-
-  def getConfig(project: String, configs: String): Config = {
-    getConfig(ParsedInputNames(targetDir = "", topProject = "", topModuleClass = "",
-      configProject = project, configs = configs))
-  }
-  def getParameters(project: String, configs:String): Parameters =
-    getParameters(getConfig(project, configs))
 }
 
 
 trait Generator extends App with HasMidasGeneratorUtilites {
-  lazy val (targetNames: ParsedInputNames, midasNames: MidasParsedInputNames) = {
-    require(args.size == 7, "Usage: sbt> " + 
-      "run TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString HostPlatformName HostPlatformConfig")
-    val targetNames = ParsedInputNames(
+  lazy val targetNames: ParsedInputNames = {
+    require(args.size == 5, "Usage: sbt> " + 
+      "run TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
+    ParsedInputNames(
       targetDir = args(0),
-      topProject = args(1),
+      topModuleProject = args(1),
       topModuleClass = args(2),
       configProject = args(3),
       configs = args(4))
-    val midasNames = MidasParsedInputNames(
-      hostPlatform = args(5),
-      hostPlatformConfig = args(6)
-    )
-    (targetNames, midasNames)
   }
 
   lazy val targetParams = getParameters(targetNames)
-  lazy val targetGenerator = getGenerator(targetNames.topProject, targetNames.topModuleClass, targetParams)
-  lazy val hostParams = getParameters("MidasTop", midasNames.hostPlatformConfig)
+  lazy val targetGenerator = getGenerator(targetNames, targetParams)
 }
 
 object MidasTopGenerator extends Generator {
   val testDir = new File(targetNames.targetDir)
-  val sArgs = Array("--targetDir", targetNames.targetDir)
-
-  //TODO: Do this better..
-  midasNames.hostPlatform match {
-    case "Sim" => StroberCompiler compile (
-      sArgs,
-      SimWrapper(targetGenerator)(hostParams),
-      false // snapshot
-    )
-    case "Zynq" => StroberCompiler compile (
-      sArgs,
-      ZynqShim(targetGenerator)(hostParams),
-      false // snapshot
-    )
-  }
+  implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
+  StroberCompiler(targetGenerator, testDir)
 }
