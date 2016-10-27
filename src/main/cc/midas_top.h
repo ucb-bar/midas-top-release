@@ -37,25 +37,32 @@ public:
     uint64_t start_time = timestamp();
     tsi->switch_to_host(); // start simulation
 
-    bool in_valid = false, in_ready;
-    bool out_ready = false, out_valid;
-
     do {
-      if ((in_ready = peek(io_serial_in_ready) && in_valid) || !in_valid) {
-        if (tsi->data_available()) {
-          poke(io_serial_in_bits, tsi->recv_word());
-          poke(io_serial_in_valid, in_valid = true);
-        } else {
-          poke(io_serial_in_valid, in_valid = false);
+      bool in_valid = false, in_ready;
+      bool out_ready = false, out_valid;
+      size_t stepped = 0;
+      do {
+        if ((in_ready = peek(io_serial_in_ready) && in_valid) || !in_valid) {
+          if (tsi->data_available()) {
+            poke(io_serial_in_bits, tsi->recv_word());
+            poke(io_serial_in_valid, in_valid = true);
+          } else {
+            poke(io_serial_in_valid, in_valid = false);
+          }
         }
-      }
-      if ((out_valid = peek(io_serial_out_valid)) && out_ready) {
-        tsi->send_word(peek(io_serial_out_bits));
-      }
-      poke(io_serial_out_ready, out_ready = true);
-      tsi->switch_to_host();
-      step(1);
+        if ((out_valid = peek(io_serial_out_valid)) && out_ready) {
+          tsi->send_word(peek(io_serial_out_bits));
+        }
+        poke(io_serial_out_ready, out_ready = true);
+        tsi->switch_to_host();
+        step(1);
+        stepped++;
+        if (stepped > step_size) stepped -= step_size;
+      } while (in_valid || out_valid);
+      poke(io_serial_out_ready, out_ready = false);
+      step(step_size - stepped);
     } while (!tsi->done() && cycles() <= max_cycles);
+
     uint64_t end_time = timestamp();
     double sim_time = (double) (end_time - start_time) / 1000000.0;
     double sim_speed = (double) cycles() / sim_time / 1000000.0;
