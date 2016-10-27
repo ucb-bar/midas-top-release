@@ -4,7 +4,7 @@ import cde._
 import rocketchip._
 import testchipip._
 import diplomacy.LazyModule
-import util.{HasGeneratorUtilities, ParsedInputNames}
+import util.{GeneratorApp, ParsedInputNames}
 import strober.StroberCompiler
 import java.io.File
 
@@ -26,16 +26,13 @@ class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle](p: Parameters, l: L, 
   with PeripheryMasterMemModule with PeripherySerialModule
   with HardwiredResetVector with DirectConnection with NoDebug
 
-trait HasMidasGeneratorUtilites extends HasGeneratorUtilities {
+trait Generator extends GeneratorApp {
   def getGenerator(targetNames: ParsedInputNames, params: Parameters) =
     LazyModule(Class.forName(targetNames.fullTopModuleClass)
       .getConstructor(classOf[cde.Parameters])
       .newInstance(params)
       .asInstanceOf[LazyModule]).module
-}
 
-
-trait Generator extends App with HasMidasGeneratorUtilites {
   lazy val targetNames: ParsedInputNames = {
     require(args.size == 5, "Usage: sbt> " + 
       "run TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
@@ -52,7 +49,9 @@ trait Generator extends App with HasMidasGeneratorUtilites {
 }
 
 object MidasTopGenerator extends Generator {
+  val longName = targetNames.topModuleProject
   val testDir = new File(targetNames.targetDir)
   implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
   StroberCompiler(targetGenerator, testDir)
+  generateTestSuiteMakefrags
 }
