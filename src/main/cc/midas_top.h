@@ -1,7 +1,6 @@
 #include "simif.h"
-#include <fesvr/tsi.h>
+#include "tsi.h"
 
-#include <iostream>
 class midas_top_t: virtual simif_t
 {
 public:
