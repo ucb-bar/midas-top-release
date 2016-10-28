@@ -64,8 +64,12 @@ public:
 
     uint64_t end_time = timestamp();
     double sim_time = (double) (end_time - start_time) / 1000000.0;
-    double sim_speed = (double) cycles() / sim_time / 1000000.0;
-    fprintf(stdout, "time elapsed: %.1f s, simulation speed = %.2f MHz\n", sim_time, sim_speed);
+    double sim_speed = (double) cycles() / sim_time / 1000.0;
+    if (sim_speed > 1000.0) {
+      fprintf(stderr, "time elapsed: %.1f s, simulation speed = %.2f MHz\n", sim_time, sim_speed / 1000.0);
+    } else {
+      fprintf(stderr, "time elapsed: %.1f s, simulation speed = %.2f KHz\n", sim_time, sim_speed);
+    }
     int exitcode = tsi->exit_code();
     if (exitcode) {
       fprintf(stdout, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
