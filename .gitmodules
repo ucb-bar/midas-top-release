@@ -13,3 +13,6 @@
 [submodule "testchipip"]
 	path = testchipip
 	url = https://github.com/ucb-bar/testchipip.git
+[submodule "midas-memory-model"]
+	path = midas-memory-model
+	url = https://github.com/ucb-bar/midas-memory-model.git

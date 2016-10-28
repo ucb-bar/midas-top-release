@@ -31,5 +31,6 @@ object MidasBuild extends Build {
   lazy val rocket     = project in file("rocket-chip") dependsOn (cde, hardfloat)
   lazy val testchipip = project dependsOn rocket
   lazy val strober    = project dependsOn (rocket, firrtl)
-  lazy val root       = project in file(".") dependsOn (strober, testchipip)
+  lazy val midasmem   = project in file("midas-memory-model") dependsOn strober
+  lazy val root       = project in file(".") dependsOn (midasmem, testchipip)
 }

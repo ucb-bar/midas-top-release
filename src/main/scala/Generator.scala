@@ -120,7 +120,8 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = targetNames.topModuleProject
   val testDir = new File(targetNames.targetDir)
-  implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
+  implicit val p = cde.Parameters.root((new strober.ZynqConfig).toInstance)
+  // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance) // TODO: need debugging?
   override def addTestSuites = super.addTestSuites(params)
   StroberCompiler(targetGenerator, testDir)
   generateTestSuiteMakefrags
