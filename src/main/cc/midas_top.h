@@ -56,7 +56,7 @@ public:
         tsi->switch_to_host();
         step(1);
         stepped++;
-        if (stepped > step_size) stepped -= step_size;
+        if (stepped == step_size) stepped -= step_size;
       } while (in_valid || out_valid);
       poke(io_serial_out_ready, out_ready = false);
       step(step_size - stepped);
