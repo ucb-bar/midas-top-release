@@ -3,3 +3,4 @@ project/target
 generated-src
 output
 *.swp
+*.key

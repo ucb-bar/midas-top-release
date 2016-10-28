@@ -16,7 +16,12 @@ CONFIG ?= DefaultExampleConfig
 SBT ?= sbt
 SBT_FLAGS ?=
 
-$(generated_dir)/$(CONFIG)/ZynqShim.v:
+src_path = src/main/scala
+submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
+	testchipip chisel firrtl strober
+chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
+
+$(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) "run $(dir $@) $(DESIGN) $(DESIGN) $(DESIGN) $(CONFIG)"
 
 compile: $(generated_dir)/$(CONFIG)/ZynqShim.v
