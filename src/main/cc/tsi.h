@@ -28,6 +28,7 @@ class tsi_t : public htif_t
 
  protected:
   void reset() override;
+  void idle() override;
   void read_chunk(addr_t taddr, size_t nbytes, void* dst) override;
   void write_chunk(addr_t taddr, size_t nbytes, const void* src) override;
 
@@ -41,6 +42,7 @@ class tsi_t : public htif_t
   context_t* target;
   std::deque<uint32_t> in_data;
   std::deque<uint32_t> out_data;
+  size_t idle_counts;
 
   void push_addr(addr_t addr);
   void push_len(size_t len);

@@ -16,6 +16,12 @@ int tsi_t::host_thread(void *arg)
 
 tsi_t::tsi_t(const std::vector<std::string>& args) : htif_t(args)
 {
+  idle_counts = 10;
+  for (auto& arg: args) {
+    if (arg.find("+idle-counts=") == 0) {
+      idle_counts = atoi(arg.c_str()+13);
+    }
+  }
   target = context_t::current();
   host.init(host_thread, this);
 }
@@ -119,4 +125,9 @@ int tsi_t::get_ipi_addrs(addr_t *ipis)
       return core;
     ipis[core] = get_uint(res);
   }
+}
+
+void tsi_t::idle() {
+  for (size_t i = 0 ; i < idle_counts ; i++)
+    target->switch_to();
 }
