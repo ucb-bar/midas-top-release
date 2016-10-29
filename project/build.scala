@@ -6,7 +6,8 @@ object MidasBuild extends Build {
   override lazy val settings = super.settings ++ Seq(
     organization := "berkeley",
     version      := "1.0",
-    scalaVersion := "2.11.7"
+    scalaVersion := "2.11.7",
+    libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
   )
   val defaultVersions = Map(
     "chisel3" -> "3.0-BETA-SNAPSHOT",
