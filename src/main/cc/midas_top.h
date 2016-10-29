@@ -42,17 +42,13 @@ public:
       size_t stepped = 0;
       do {
         if ((in_ready = peek(io_serial_in_ready) && in_valid) || !in_valid) {
-          if (tsi->data_available()) {
-            poke(io_serial_in_bits, tsi->recv_word());
-            poke(io_serial_in_valid, in_valid = true);
-          } else {
-            poke(io_serial_in_valid, in_valid = false);
-          }
+          poke(io_serial_in_valid, in_valid = tsi->data_available());
+          if (in_valid) poke(io_serial_in_bits, tsi->recv_word());
         }
         if ((out_valid = peek(io_serial_out_valid)) && out_ready) {
           tsi->send_word(peek(io_serial_out_bits));
         }
-        poke(io_serial_out_ready, out_ready = true);
+        poke(io_serial_out_ready, out_ready = out_valid);
         tsi->switch_to_host();
         step(1);
         stepped++;
@@ -72,11 +68,11 @@ public:
     }
     int exitcode = tsi->exit_code();
     if (exitcode) {
-      fprintf(stdout, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
+      fprintf(stderr, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
     } else if (cycles() > max_cycles) {
-      fprintf(stdout, "*** FAILED *** (timeout) after %" PRIu64 " cycles\n", cycles());
+      fprintf(stderr, "*** FAILED *** (timeout) after %" PRIu64 " cycles\n", cycles());
     } else {
-      fprintf(stdout, "*** PASSED *** after %" PRIu64 " cycles\n", cycles());
+      fprintf(stderr, "*** PASSED *** after %" PRIu64 " cycles\n", cycles());
     }
     expect(!exitcode, NULL);
   }
