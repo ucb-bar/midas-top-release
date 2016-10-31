@@ -35,19 +35,19 @@ trait HasGenerator extends GeneratorApp {
       .newInstance(params)
       .asInstanceOf[LazyModule]).module
 
-  lazy val targetNames: ParsedInputNames = {
-    require(args.size == 5, "Usage: sbt> " + 
-      "run TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
+  override lazy val names: ParsedInputNames = {
+    require(args.size == 6, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
     ParsedInputNames(
-      targetDir = args(0),
-      topModuleProject = args(1),
-      topModuleClass = args(2),
-      configProject = args(3),
-      configs = args(4))
+      targetDir = args(1),
+      topModuleProject = args(2),
+      topModuleClass = args(3),
+      configProject = args(4),
+      configs = args(5))
   }
 
-  lazy val targetParams = getParameters(targetNames)
-  lazy val targetGenerator = getGenerator(targetNames, targetParams)
+  lazy val targetParams = getParameters(names)
+  lazy val targetGenerator = getGenerator(names, targetParams)
 }
 
 trait HasTestSuites {
@@ -118,11 +118,18 @@ trait HasTestSuites {
 }
 
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
-  val longName = targetNames.topModuleProject
-  val testDir = new File(targetNames.targetDir)
+  val longName = names.topModuleProject
+  val testDir = new File(names.targetDir)
   implicit val p = cde.Parameters.root((new strober.ZynqConfig).toInstance)
   // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance) // TODO: need debugging?
   override def addTestSuites = super.addTestSuites(params)
-  StroberCompiler(targetGenerator, testDir)
+  args.head match {
+    case "midas" =>
+      StroberCompiler(targetGenerator, testDir)
+    case "strober" =>
+      StroberCompiler(targetGenerator, testDir)(p alter Map(strober.EnableSnapshot -> true))
+    case "replay" =>
+      strober.replay.Compiler(targetGenerator, testDir)
+  }
   generateTestSuiteMakefrags
 }
