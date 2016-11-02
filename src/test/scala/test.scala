@@ -25,8 +25,8 @@ abstract class MidasTopTestSuite(
   lazy val configName = config.getClass.getSimpleName
   lazy val makeArgs = Seq("DESIGN=MidasTop", s"CONFIG=$configName")
 
-  val genDir = new File(new File("generated-src"), configName) ; genDir.mkdirs
-  val outDir = new File("output") ; outDir.mkdirs
+  val genDir = new File("generated-src", configName) ; genDir.mkdirs
+  val outDir = new File("output", configName) ; outDir.mkdirs
 
   lazy val design = LazyModule(new MidasTop(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
@@ -88,3 +88,4 @@ abstract class MidasTopTestSuite(
 }
 
 class DefaultExampleTests extends MidasTopTestSuite(new DefaultExampleConfig)
+class SmallBOOMTests extends MidasTopTestSuite(new SmallBOOMConfig)

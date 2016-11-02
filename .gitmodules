@@ -16,3 +16,6 @@
 [submodule "midas-memory-model"]
 	path = midas-memory-model
 	url = https://github.com/ucb-bar/midas-memory-model.git
+[submodule "riscv-boom"]
+	path = boom
+	url = https://github.com/ucb-bar/riscv-boom.git

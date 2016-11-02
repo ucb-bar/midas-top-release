@@ -10,7 +10,17 @@ class WithLBPipe extends Config(
   }
 )
 
-class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new strober.ZynqConfig)
+class ZynqConfigWithMemModel extends Config(
+  new WithLBPipe ++ new strober.ZynqConfig)
 
 class DefaultExampleConfig extends Config(
   new testchipip.WithSerialAdapter ++ new rocketchip.BaseConfig)
+
+class NoBrPred extends Config(
+  (key, _, _) => key match {
+    case boom.EnableBranchPredictor => false
+  }
+)
+
+class SmallBOOMConfig extends Config(
+  new NoBrPred ++ new testchipip.WithSerialAdapter ++ new boom.SmallBOOMConfig)

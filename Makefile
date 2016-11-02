@@ -10,6 +10,7 @@ output_dir ?= $(base_dir)/output
 EMUL ?= verilator
 DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
+# CONFIG ?= SmallBOOMConfig
 STROBER ?=
 SAMPLE ?=
 
@@ -24,7 +25,7 @@ SBT_FLAGS ?=
 
 src_path = src/main/scala
 submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	testchipip chisel firrtl strober
+	testchipip boom chisel firrtl strober
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
 $(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)
