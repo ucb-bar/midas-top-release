@@ -22,38 +22,37 @@ abstract class MidasTopTestSuite(
   // implicit val p = Parameters.root((new ZynqConfigWithMemModel).toInstance)
 
   lazy val param = Parameters.root(config.toInstance)
-  lazy val design = LazyModule(new MidasTop(param))
-
-  lazy val designName = design.getClass.getSimpleName
   lazy val configName = config.getClass.getSimpleName
-  lazy val makeArgs = Seq(s"DESIGN=$designName", s"CONFIG=$configName")
+  lazy val makeArgs = Seq("DESIGN=MidasTop", s"CONFIG=$configName")
 
-  val genDir = new File("generated-src") ; genDir.mkdirs
+  val genDir = new File(new File("generated-src"), configName) ; genDir.mkdirs
   val outDir = new File("output") ; outDir.mkdirs
 
-  // StroberCompiler(design.module, new File(genDir, configName))
-  if (p(EnableSnapshot)) strober.replay.Compiler(
-    LazyModule(new MidasTop(param)).module, new File(genDir, configName))
+  lazy val design = LazyModule(new MidasTop(param)).module
+  val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
+  StroberCompiler(chirrtl, design.io, genDir)
+  if (p(EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
   addTestSuites(param)
 
-  val makefrag = new FileWriter(new File(new File(genDir, configName), "MidasTop.d"))
+  val makefrag = new FileWriter(new File(genDir, "MidasTop.d"))
   makefrag write generateMakefrag
   makefrag.close
 
   def makeTest(backend: String, name: String, debug: Boolean) = {
     val dir = (new File(outDir, backend)).getAbsolutePath
-    (Seq("make", s"${dir}/${name}.%s".format(
-      if (debug) "vpd" else "out"), s"EMUL=$backend") ++ makeArgs).!
+    (Seq("make", s"${dir}/${name}.%s".format(if (debug) "vpd" else "out"),
+         s"EMUL=$backend", s"output_dir=$dir") ++ makeArgs).!
   }
 
   def makeReplay(backend: String, name: String) = {
     val dir = (new File(outDir, backend)).getAbsolutePath
-    (Seq("make", s"${dir}/${name}-replay.vpd", s"EMUL=$backend") ++ makeArgs).!
+    (Seq("make", s"${dir}/${name}-replay.vpd",
+         s"EMUL=$backend", s"output_dir=$dir") ++ makeArgs).!
   }
 
   def runSuite(backend: String, debug: Boolean = false)(suite: RocketTestSuite) {
-    assert((Seq("make", s"$backend%s".format(
-      if (debug) "-debug" else "")) ++ makeArgs).! == 0) // compile emulators
+    // compile emulators
+    assert((Seq("make", s"$backend%s".format(if (debug) "-debug" else "")) ++ makeArgs).! == 0)
     behavior of s"${suite.makeTargetName} in $backend"
     val postfix = suite match {
       case s: BenchmarkTestSuite => ".riscv"
@@ -83,9 +82,9 @@ abstract class MidasTopTestSuite(
   // asmSuites.values foreach runSuite("verilator")
   // asmSuites.values foreach runSuite("vcs")
   bmarkSuites.values foreach runSuite("verilator")
-  bmarkSuites.values foreach runSuite("vcs")
+  bmarkSuites.values foreach runSuite("vcs", true)
   regressionSuites.values foreach runSuite("verilator")
-  regressionSuites.values foreach runSuite("vcs")
+  regressionSuites.values foreach runSuite("vcs", true)
 }
 
 class DefaultExampleTests extends MidasTopTestSuite(new DefaultExampleConfig)

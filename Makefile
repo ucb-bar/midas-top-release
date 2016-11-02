@@ -1,3 +1,9 @@
+base_dir = $(abspath .)
+simif_dir = $(base_dir)/strober/src/main/cc
+testbench_dir = $(base_dir)/src/main/cc
+generated_dir ?= $(base_dir)/generated-src
+output_dir ?= $(base_dir)/output
+
 ##################
 #   Parameters   #
 ##################
@@ -7,11 +13,6 @@ CONFIG ?= DefaultExampleConfig
 STROBER ?=
 SAMPLE ?=
 
-base_dir = $(abspath .)
-generated_dir = $(base_dir)/generated-src
-testbench_dir = $(base_dir)/src/main/cc
-simif_dir = $(base_dir)/strober/src/main/cc
-output_dir = $(base_dir)/output/$(EMUL)
 
 testbench_h = $(addprefix $(testbench_dir)/, $(addsuffix .h, midas_top tsi))
 testbench_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_emul tsi))
@@ -84,18 +85,18 @@ vcs-debug: $(vcs_debug)
 ######################
 $(output_dir)/%.run: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$(basename $<).sample +max-cycles=$(timeout_cycles) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) \
 	2> /dev/null 2> $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$(basename $<).sample +max-cycles=$(timeout_cycles) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) \
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
 # TODO: veriltor compilation with --trace is extremley slow...
 $(output_dir)/%.vpd: $(output_dir)/% $(vcs_debug)
 	cd $(dir $(word 2, $^)) && \
-	./$(notdir $(word 2, $^)) $< +sample=$(basename $<).sample +waveform=$@ +max-cycles=$(timeout_cycles) \
+	./$(notdir $(word 2, $^)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 ######################
@@ -118,10 +119,10 @@ ifdef SAMPLE
 	$(disasm) $(DESIGN)-replay.out && [ $$PIPESTATUS -eq 0 ]
 endif
 
-$(output_dir)/%.sample: $(EMUL) $(output_dir)/%.out
+$(output_dir)/%.sample: $(output_dir)/%.out
 
 $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
-	$(vcs_replay) +sample=$< +verbose +waveform=$@ $(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
+	$(vcs_replay) +sample=$(output_dir)/$*.sample +verbose +waveform=$@ $(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 clean:
 	rm -rf $(generated_dir) $(output_dir)
