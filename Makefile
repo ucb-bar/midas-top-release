@@ -13,6 +13,7 @@ CONFIG ?= DefaultExampleConfig
 # CONFIG ?= SmallBOOMConfig
 STROBER ?=
 SAMPLE ?=
+ARGS ?=
 
 
 testbench_h = $(addprefix $(testbench_dir)/, $(addsuffix .h, midas_top tsi))
@@ -86,18 +87,18 @@ vcs-debug: $(vcs_debug)
 ######################
 $(output_dir)/%.run: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
 	2> /dev/null 2> $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
 # TODO: veriltor compilation with --trace is extremley slow...
 $(output_dir)/%.vpd: $(output_dir)/% $(vcs_debug)
 	cd $(dir $(word 2, $^)) && \
-	./$(notdir $(word 2, $^)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) \
+	./$(notdir $(word 2, $^)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 ######################
