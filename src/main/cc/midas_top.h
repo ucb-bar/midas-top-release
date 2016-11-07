@@ -1,5 +1,9 @@
 #include "simif.h"
+#ifdef ZYNQ
+#include <fesvr/tsi.h>
+#else
 #include "tsi.h"
+#endif
 
 class midas_top_t: virtual simif_t
 {

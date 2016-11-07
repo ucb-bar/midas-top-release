@@ -15,9 +15,9 @@ STROBER ?=
 SAMPLE ?=
 ARGS ?=
 
-
 testbench_h = $(addprefix $(testbench_dir)/, $(addsuffix .h, midas_top tsi))
-testbench_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_emul tsi))
+emul_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_emul tsi))
+zynq_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_zynq))
 simif_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.cc)
 simif_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc)
 
@@ -38,9 +38,6 @@ ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
 -include $(generated_dir)/$(CONFIG)/$(DESIGN).d
 endif
 
-export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
-export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
-
 timeout_cycles = 100000000
 disasm := 2>
 which_disasm := $(shell which spike-dasm 2> /dev/null)
@@ -54,13 +51,16 @@ endif
 verilator = $(generated_dir)/$(CONFIG)/V$(DESIGN)
 verilator_debug = $(generated_dir)/$(CONFIG)/V$(DESIGN)-debug
 
-$(verilator): $(testbench_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) verilator DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(testbench_cc)"
+$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
+$(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator_debug): $(testbench_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
+$(verilator): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
+	$(MAKE) -C $(simif_dir) verilator DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
+	TESTBENCH="$(emul_cc)"
+
+$(verilator_debug): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
 	$(MAKE) -C $(simif_dir) verilator-debug DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(testbench_cc)"
+	TESTBENCH="$(emul_cc)"
 
 verilator: $(verilator)
 verilator-debug: $(verilator_debug)
@@ -71,13 +71,16 @@ verilator-debug: $(verilator_debug)
 vcs = $(generated_dir)/$(CONFIG)/$(DESIGN)
 vcs_debug = $(generated_dir)/$(CONFIG)/$(DESIGN)-debug
 
-$(vcs): $(testbench_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) vcs DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(testbench_cc)"
+$(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
+$(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(vcs_debug): $(testbench_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
+$(vcs): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
+	$(MAKE) -C $(simif_dir) vcs DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
+	TESTBENCH="$(emul_cc)"
+
+$(vcs_debug): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
 	$(MAKE) -C $(simif_dir) vcs-debug DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(testbench_cc)"
+	TESTBENCH="$(emul_cc)"
 
 vcs: $(vcs)
 vcs-debug: $(vcs_debug)
@@ -112,13 +115,14 @@ compile-replay: $(generated_dir)/$(CONFIG)/$(DESIGN).v
 
 vcs_replay = $(generated_dir)/$(CONFIG)/$(DESIGN)-replay
 
-$(vcs_replay): $(generated_dir)/$(CONFIG)/$(DESIGN).v
+$(vcs_replay): $(generated_dir)/$(CONFIG)/$(DESIGN).v $(simif_cc) $(simif_h)
 	$(MAKE) -C $(simif_dir) vcs-replay DESIGN=$(DESIGN) GEN_DIR=$(dir $<)
 
 vcs-replay: $(vcs_replay)
 ifdef SAMPLE
-	$(vcs_replay) +sample=$(abspath $(SAMPLE)) +verbose +waveform=$(DESIGN)-replay.vpd \
-	$(disasm) $(DESIGN)-replay.out && [ $$PIPESTATUS -eq 0 ]
+	$(vcs_replay) +sample=$(abspath $(SAMPLE)) +verbose \
+	+waveform=$(output_dir)/$(DESIGN)-replay.vpd \
+	$(disasm) $(output_dir)/$(DESIGN)-replay.out && [ $$PIPESTATUS -eq 0 ]
 endif
 
 $(output_dir)/%.sample: $(output_dir)/%.out
@@ -126,7 +130,66 @@ $(output_dir)/%.sample: $(output_dir)/%.out
 $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
 	$(vcs_replay) +sample=$(output_dir)/$*.sample +verbose +waveform=$@ $(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
+######################
+#   FPGA Simulation  #
+######################
+
+# Compile Frontend Server
+host = arm-xilinx-linux-gnueabi
+fesvr_dir = $(base_dir)/rocket-chip/riscv-tools/riscv-fesvr
+
+$(generated_dir)/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
+	mkdir -p $(dir $@)
+	cd $(generated_dir) && $(fesvr_dir)/configure --host=$(host)
+	$(MAKE) -C $(generated_dir)
+
+$(output_dir)/$(CONFIG)/libfesvr.so: $(generated_dir)/libfesvr.so
+	mkdir -p $(dir $@)
+	cp $< $@
+
+# Compile Driver
+zynq = $(output_dir)/$(CONFIG)/$(DESIGN)-zynq
+
+$(zynq): export CXX := $(host)-g++
+$(zynq): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include -DZYNQ
+$(zynq): export LDFLAGS := $(LDFLAGS) -L$(output_dir)/$(CONFIG) -lfesvr -Wl,-rpath,/usr/local/lib
+
+$(zynq): $(zynq_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h) $(output_dir)/$(CONFIG)/libfesvr.so
+	$(MAKE) -C $(simif_dir) zynq DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
+	OUT_DIR=$(dir $@) TESTBENCH="$(zynq_cc)"
+
+$(output_dir)/$(CONFIG)/$(DESIGN).chain: $(generated_dir)/$(CONFIG)/ZynqShim.v
+	if [ -a $(generated_dir)/$(CONFIG)/$(DESIGN).chain ]; then \
+	  cp $(generated_dir)/$(CONFIG)/$(DESIGN).chain $@; \
+	fi
+
+zynq: $(zynq) $(output_dir)/$(CONFIG)/$(DESIGN).chain
+
+# Generate Bitstream
+board     ?= zc706
+board_dir := $(base_dir)/midas-zynq/$(board)
+bitstream := fpga-images-$(board)/boot.bin
+
+$(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(generated_dir)/$(CONFIG)/ZynqShim.v
+	mkdir -p $(dir $@)
+	cp $< $@
+
+$(output_dir)/$(CONFIG)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
+	mkdir -p $(dir $@)
+	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
+	cp $(board_dir)/$(bitstream) $@
+
+$(output_dir)/$(CONFIG)/midas_wrapper.bit:
+	mkdir -p $(dir $@)
+	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
+
+fpga: $(output_dir)/$(CONFIG)/boot.bin $(output_dir)/$(CONFIG)/midas_wrapper.bit
+
+mostlyclean:
+	rm -rf $(verilator) $(verilator_debug) $(vcs) $(vcs_debug) $(zynq)
+	rm -rf $(output_dir)/*.run $(output_dir)/*.out $(output_dir)/*.vpd
+
 clean:
 	rm -rf $(generated_dir) $(output_dir)
 
-.PHONY: compile verilator clean
+.PHONY: compile verilator verilator-debug vcs vcs-debug zynq fpga mostlyclean clean

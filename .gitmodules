@@ -19,3 +19,6 @@
 [submodule "riscv-boom"]
 	path = boom
 	url = https://github.com/ucb-bar/riscv-boom.git
+[submodule "midas-zynq"]
+	path = midas-zynq
+	url = https://github.com/donggyukim/midas-zynq.git
