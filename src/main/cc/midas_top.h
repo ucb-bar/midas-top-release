@@ -33,6 +33,9 @@ public:
 #else
     write(MEMMODEL_0_LATENCY, latency);
 #endif
+    // Assert reset T=0 -> 5
+    target_reset(0, 5);
+
     uint64_t start_time = timestamp();
     tsi->switch_to_host(); // start simulation
 
