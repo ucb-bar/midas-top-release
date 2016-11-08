@@ -130,3 +130,5 @@ clean:
 	rm -rf $(generated_dir) $(output_dir)
 
 .PHONY: compile verilator clean
+
+.PRECIOUS: $(output_dir)/%.vpd $(output_dir)/%.out $(output_dir)/%.run
