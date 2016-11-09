@@ -150,13 +150,12 @@ $(output_dir)/$(CONFIG)/libfesvr.so: $(generated_dir)/libfesvr.so
 # Compile Driver
 zynq = $(output_dir)/$(CONFIG)/$(DESIGN)-zynq
 
-$(zynq): export CXX := $(host)-g++
-$(zynq): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include -DZYNQ
-$(zynq): export LDFLAGS := $(LDFLAGS) -L$(output_dir)/$(CONFIG) -lfesvr -Wl,-rpath,/usr/local/lib
-
 $(zynq): $(zynq_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h) $(output_dir)/$(CONFIG)/libfesvr.so
 	$(MAKE) -C $(simif_dir) zynq DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	OUT_DIR=$(dir $@) TESTBENCH="$(zynq_cc)"
+	OUT_DIR=$(dir $@) TESTBENCH="$(zynq_cc)" \
+	CXX="$(host)-g++" \
+	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include -DZYNQ" \
+	LDFLAGS="$(LDFLAGS) -L$(output_dir)/$(CONFIG) -lfesvr -Wl,-rpath,/usr/local/lib"
 
 $(output_dir)/$(CONFIG)/$(DESIGN).chain: $(generated_dir)/$(CONFIG)/ZynqShim.v
 	if [ -a $(generated_dir)/$(CONFIG)/$(DESIGN).chain ]; then \
@@ -171,6 +170,7 @@ board_dir := $(base_dir)/midas-zynq/$(board)
 bitstream := fpga-images-$(board)/boot.bin
 
 $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(generated_dir)/$(CONFIG)/ZynqShim.v
+	$(MAKE) -C $(board_dir) clean DESIGN=$(CONFIG)
 	mkdir -p $(dir $@)
 	cp $< $@
 
@@ -187,7 +187,8 @@ fpga: $(output_dir)/$(CONFIG)/boot.bin $(output_dir)/$(CONFIG)/midas_wrapper.bit
 
 mostlyclean:
 	rm -rf $(verilator) $(verilator_debug) $(vcs) $(vcs_debug) $(zynq)
-	rm -rf $(output_dir)/*.run $(output_dir)/*.out $(output_dir)/*.vpd
+	rm -rf $(output_dir)/*.run $(output_dir)/*.out $(output_dir)/*.vpd $(output_dir)/*.sample
+	rm -rf $(output_dir)/$(CONFIG)
 
 clean:
 	rm -rf $(generated_dir) $(output_dir)
