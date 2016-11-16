@@ -194,3 +194,5 @@ clean:
 	rm -rf $(generated_dir) $(output_dir)
 
 .PHONY: compile verilator verilator-debug vcs vcs-debug zynq fpga mostlyclean clean
+
+.PRECIOUS: $(output_dir)/%.vpd $(output_dir)/%.out $(output_dir)/%.run
