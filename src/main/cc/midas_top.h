@@ -1,16 +1,12 @@
 #include "simif.h"
-#ifdef ZYNQ
-#include <fesvr/tsi.h>
-#else
 #include "tsi.h"
-#endif
 
 class midas_top_t: virtual simif_t
 {
 public:
   midas_top_t(int argc, char** argv) {
     std::vector<std::string> args(argv + 1, argv + argc);
-    tsi = new tsi_t(args);
+    tsi = new tsi_midas_t(args);
     max_cycles = -1;
     latency = 8;
     for (auto &arg: args) {
@@ -41,25 +37,26 @@ public:
     target_reset(0, 5);
 
     uint64_t start_time = timestamp();
-    tsi->switch_to_host(); // start simulation
 
     do {
-      bool in_valid = false, in_ready;
+      bool in_valid = false;
       bool out_ready = false, out_valid;
       size_t stepped = 0;
       do {
-        if ((in_ready = peek(io_serial_in_ready) && in_valid) || !in_valid) {
+        if ((peek(io_serial_in_ready) && in_valid) || !in_valid) {
           poke(io_serial_in_valid, in_valid = tsi->data_available());
           if (in_valid) poke(io_serial_in_bits, tsi->recv_word());
         }
         if ((out_valid = peek(io_serial_out_valid)) && out_ready) {
           tsi->send_word(peek(io_serial_out_bits));
         }
-        poke(io_serial_out_ready, out_ready = out_valid);
         tsi->switch_to_host();
-        step(1);
-        stepped++;
-        if (stepped == step_size) stepped -= step_size;
+        if (in_valid || out_valid) {
+          poke(io_serial_out_ready, out_ready = out_valid);
+          step(1);
+          stepped++;
+          if (stepped == step_size) stepped -= step_size;
+        }
       } while (in_valid || out_valid);
       poke(io_serial_out_ready, out_ready = false);
       step(step_size - stepped);
@@ -85,7 +82,7 @@ public:
   }
 
 private:
-  tsi_t *tsi;
+  tsi_midas_t *tsi;
   uint64_t max_cycles;
   size_t latency;
 };

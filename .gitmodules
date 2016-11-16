@@ -22,3 +22,6 @@
 [submodule "midas-zynq"]
 	path = midas-zynq
 	url = https://github.com/donggyukim/midas-zynq.git
+[submodule "fesvr"]
+	path = riscv-fesvr
+	url = https://github.com/riscv/riscv-fesvr.git

@@ -17,7 +17,7 @@ ARGS ?=
 
 testbench_h = $(addprefix $(testbench_dir)/, $(addsuffix .h, midas_top tsi))
 emul_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_emul tsi))
-zynq_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_zynq))
+zynq_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_zynq tsi))
 simif_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.cc)
 simif_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc)
 
@@ -136,7 +136,7 @@ $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
 
 # Compile Frontend Server
 host = arm-xilinx-linux-gnueabi
-fesvr_dir = $(base_dir)/rocket-chip/riscv-tools/riscv-fesvr
+fesvr_dir = $(base_dir)/riscv-fesvr
 
 $(generated_dir)/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
 	mkdir -p $(dir $@)
@@ -179,7 +179,7 @@ $(output_dir)/$(CONFIG)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
 	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
 	cp $(board_dir)/$(bitstream) $@
 
-$(output_dir)/$(CONFIG)/midas_wrapper.bit:
+$(output_dir)/$(CONFIG)/midas_wrapper.bit: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
 	mkdir -p $(dir $@)
 	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
 
