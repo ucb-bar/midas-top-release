@@ -4,3 +4,5 @@ generated-src
 output
 *.swp
 *.key
+*.fir
+*.sample

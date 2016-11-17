@@ -12,14 +12,17 @@ import java.io.{File, FileWriter}
 
 abstract class MidasTopTestSuite(
     config: Config,
+    snapshot: Boolean = false,
+    memmodel: Boolean = false,
     latency: Int = 8,
     N: Int = 10) extends org.scalatest.FlatSpec with HasTestSuites {
   import scala.concurrent.duration._
   import ExecutionContext.Implicits.global
 
-  implicit val p = Parameters.root((new strober.ZynqConfig).toInstance) /* alter (
-    Map(EnableSnapshot -> true)) */
-  // implicit val p = Parameters.root((new ZynqConfigWithMemModel).toInstance)
+  implicit val p = Parameters.root(memmodel match {
+    case true => (new ZynqConfigWithMemModel).toInstance
+    case false => (new strober.ZynqConfig).toInstance
+  }) alter (Map(EnableSnapshot -> snapshot))
 
   lazy val param = Parameters.root(config.toInstance)
   lazy val configName = config.getClass.getSimpleName
@@ -78,14 +81,15 @@ abstract class MidasTopTestSuite(
       }
     }
   }
+}
 
-  // asmSuites.values foreach runSuite("verilator")
-  // asmSuites.values foreach runSuite("vcs")
+class DefaultExampleTests extends MidasTopTestSuite(new DefaultExampleConfig) {
   bmarkSuites.values foreach runSuite("verilator")
   bmarkSuites.values foreach runSuite("vcs", true)
   regressionSuites.values foreach runSuite("verilator")
   regressionSuites.values foreach runSuite("vcs", true)
 }
-
-class DefaultExampleTests extends MidasTopTestSuite(new DefaultExampleConfig)
-class SmallBOOMTests extends MidasTopTestSuite(new SmallBOOMConfig)
+class SmallBOOMTests extends MidasTopTestSuite(new SmallBOOMConfig) {
+  bmarkSuites.values foreach runSuite("verilator")
+  bmarkSuites.values foreach runSuite("vcs", true)
+}
