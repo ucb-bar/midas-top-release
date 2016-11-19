@@ -1,6 +1,5 @@
 import sbt._
 import Keys._
-import java.nio.file.{Paths, Files}
 
 object MidasBuild extends Build {
   override lazy val settings = super.settings ++ Seq(
@@ -21,14 +20,11 @@ object MidasBuild extends Build {
 
   lazy val firrtl     = project
   lazy val chisel     = project settings subModSettings
-  lazy val cde        = project in file("rocket-chip/context-dependent-environments")
   // rocket has a ton of useful library components (notably junctions), and
   // will need to be a part of any midas project, regardless of whether or not
   // it is the target design
-
-  // TODO: look this up through rocketchip
-  lazy val hardfloat  = project in file("rocket-chip/hardfloat") dependsOn (chisel)
-
+  lazy val cde        = project in file("rocket-chip/context-dependent-environments")
+  lazy val hardfloat  = project in file("rocket-chip/hardfloat") dependsOn chisel
   lazy val rocket     = project in file("rocket-chip") dependsOn (cde, hardfloat)
   lazy val testchipip = project dependsOn rocket
   lazy val boom       = project dependsOn rocket
