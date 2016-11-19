@@ -8,6 +8,7 @@ output_dir ?= $(base_dir)/output
 #   Parameters   #
 ##################
 EMUL ?= verilator
+PROJECT ?= midas.top
 DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
 # CONFIG ?= SmallBOOMConfig
@@ -30,7 +31,7 @@ submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-e
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
 $(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run $(if $(STROBER),strober,midas) $(dir $@) $(DESIGN) $(DESIGN) $(DESIGN) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run $(if $(STROBER),strober,midas) $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
 
 compile: $(generated_dir)/$(CONFIG)/ZynqShim.v
 

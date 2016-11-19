@@ -1,9 +1,9 @@
-package MidasTop
+package midas
+package top
 
 import rocketchip._
 import TestGeneration._
 import diplomacy.LazyModule
-import strober.{StroberCompiler, EnableSnapshot}
 import cde.{Config, Parameters}
 import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.sys.process.stringSeqToProcess
@@ -21,8 +21,8 @@ abstract class MidasTopTestSuite(
 
   implicit val p = Parameters.root(memmodel match {
     case true => (new ZynqConfigWithMemModel).toInstance
-    case false => (new strober.ZynqConfig).toInstance
-  }) alter (Map(EnableSnapshot -> snapshot))
+    case false => (new midas.ZynqConfig).toInstance
+  }) alter (Map(midas.EnableSnapshot -> snapshot))
 
   lazy val param = Parameters.root(config.toInstance)
   lazy val configName = config.getClass.getSimpleName
@@ -33,8 +33,8 @@ abstract class MidasTopTestSuite(
 
   lazy val design = LazyModule(new MidasTop(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
-  StroberCompiler(chirrtl, design.io, genDir)
-  if (p(EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
+  midas.MidasCompiler(chirrtl, design.io, genDir)
+  if (p(midas.EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
   addTestSuites(param)
 
   val makefrag = new FileWriter(new File(genDir, "MidasTop.d"))
@@ -69,7 +69,7 @@ abstract class MidasTopTestSuite(
     results.flatten foreach { case (name, exitcode) =>
       it should s"pass $name" in { assert(exitcode == 0) }
     }
-    if (p(EnableSnapshot)) {
+    if (p(midas.EnableSnapshot)) {
       assert((Seq("make", "vcs-replay") ++ makeArgs).! == 0) // compile vcs
       val replays = suite.names.toSeq sliding (N, N) map { t =>
         val subresults = t map (name =>

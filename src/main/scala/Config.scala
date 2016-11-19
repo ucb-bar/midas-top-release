@@ -1,17 +1,17 @@
-package MidasTop
+package midas
+package top
 
 import cde.{Parameters, Config}
 import dram_midas._
 
 class WithLBPipe extends Config(
   (key, _, _) => key match {
-    case midas_widgets.MemModelKey => Some((p: Parameters) => new MidasMemModel(
+    case widgets.MemModelKey => Some((p: Parameters) => new MidasMemModel(
       new LatencyPipeConfig(new BaseParams(maxReads = 16, maxWrites = 16)))(p))
   }
 )
 
-class ZynqConfigWithMemModel extends Config(
-  new WithLBPipe ++ new strober.ZynqConfig)
+class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
 
 class DefaultExampleConfig extends Config(
   new testchipip.WithSerialAdapter ++ new rocketchip.BaseConfig)

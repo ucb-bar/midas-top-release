@@ -1,4 +1,5 @@
-package MidasTop
+package midas
+package top
 
 import cde._
 import rocketchip._
@@ -7,7 +8,6 @@ import rocket.{XLen, UseVM, UseAtomics, UseCompressed, FPUKey}
 import diplomacy.LazyModule
 import util.{GeneratorApp, ParsedInputNames}
 import DefaultTestSuites._
-import strober.StroberCompiler
 import java.io.File
 
 class MidasTop(q: Parameters) extends BaseTop(q)
@@ -120,14 +120,16 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
-  implicit val p = cde.Parameters.root((new strober.ZynqConfig).toInstance)
-  // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance) // TODO: need debugging?
+  implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
+  // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance)
+
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      StroberCompiler(targetGenerator, testDir)
+      midas.MidasCompiler(targetGenerator, testDir)
     case "strober" =>
-      StroberCompiler(targetGenerator, testDir)(p alter Map(strober.EnableSnapshot -> true))
+      midas.MidasCompiler(targetGenerator, testDir)(
+        p alter Map(midas.EnableSnapshot -> true))
     case "replay" =>
       strober.replay.Compiler(targetGenerator, testDir)
   }
