@@ -36,7 +36,7 @@ $(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)
 compile: $(generated_dir)/$(CONFIG)/ZynqShim.v
 
 ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
--include $(generated_dir)/$(CONFIG)/$(DESIGN).d
+-include $(generated_dir)/$(CONFIG)/$(PROJECT).d
 endif
 
 timeout_cycles = 100000000
@@ -110,7 +110,7 @@ $(output_dir)/%.vpd: $(output_dir)/% $(vcs_debug)
 ######################
 
 $(generated_dir)/$(CONFIG)/$(DESIGN).v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run replay $(dir $@) $(DESIGN) $(DESIGN) $(DESIGN) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run replay $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
 
 compile-replay: $(generated_dir)/$(CONFIG)/$(DESIGN).v
 

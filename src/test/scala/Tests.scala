@@ -37,7 +37,7 @@ abstract class MidasTopTestSuite(
   if (p(midas.EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
   addTestSuites(param)
 
-  val makefrag = new FileWriter(new File(genDir, "MidasTop.d"))
+  val makefrag = new FileWriter(new File(genDir, "midas.top.d"))
   makefrag write generateMakefrag
   makefrag.close
 
