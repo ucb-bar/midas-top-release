@@ -1,5 +1,5 @@
 base_dir = $(abspath .)
-simif_dir = $(base_dir)/strober/src/main/cc
+simif_dir = $(base_dir)/midas/src/main/cc
 testbench_dir = $(base_dir)/src/main/cc
 generated_dir ?= $(base_dir)/generated-src
 output_dir ?= $(base_dir)/output
@@ -27,7 +27,7 @@ SBT_FLAGS ?=
 
 src_path = src/main/scala
 submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	testchipip boom chisel firrtl strober
+	testchipip boom chisel firrtl midas
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
 $(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)

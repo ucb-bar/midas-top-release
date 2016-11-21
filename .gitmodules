@@ -1,9 +1,9 @@
 [submodule "rocket-chip"]
 	path = rocket-chip
 	url = git@github.com:ucb-bar/rocket-chip.git
-[submodule "strober"]
-	path = strober
-	url = git@github.com:ucb-bar/strober.git
+[submodule "midas"]
+	path = midas
+	url = git@github.com:ucb-bar/midas.git
 [submodule "firrtl"]
 	path = firrtl
 	url = git@github.com:ucb-bar/firrtl.git
