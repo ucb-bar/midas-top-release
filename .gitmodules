@@ -9,19 +9,19 @@
 	url = git@github.com:ucb-bar/firrtl.git
 [submodule "chisel"]
 	path = chisel
-	url = https://github.com/ucb-bar/chisel3.git
+	url = git@github.com:ucb-bar/chisel3.git
 [submodule "testchipip"]
 	path = testchipip
-	url = https://github.com/ucb-bar/testchipip.git
+	url = git@github.com:ucb-bar/testchipip.git
 [submodule "midas-memory-model"]
 	path = midas-memory-model
-	url = https://github.com/ucb-bar/midas-memory-model.git
+	url = git@github.com:ucb-bar/midas-memory-model.git
 [submodule "riscv-boom"]
 	path = boom
-	url = https://github.com/ucb-bar/riscv-boom.git
+	url = git@github.com:ucb-bar/riscv-boom.git
 [submodule "midas-zynq"]
 	path = midas-zynq
-	url = https://github.com/donggyukim/midas-zynq.git
+	url = git@github.com:donggyukim/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr
-	url = https://github.com/riscv/riscv-fesvr.git
+	url = git@github.com:riscv/riscv-fesvr.git
