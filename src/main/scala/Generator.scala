@@ -36,8 +36,8 @@ trait HasGenerator extends GeneratorApp {
       .asInstanceOf[LazyModule]).module
 
   override lazy val names: ParsedInputNames = {
-    require(args.size == 6, "Usage: sbt> run [midas | strober | replay] " +
-      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
+    require(args.size == 7, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString platform")
     ParsedInputNames(
       targetDir = args(1),
       topModuleProject = args(2),
@@ -120,16 +120,19 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
-  implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
+  def midasParams = cde.Parameters.root((args.last match {
+    case "zynq"     => new ZynqConfig
+    case "catapult" => new CatapultConfig
+  }).toInstance)
   // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance)
 
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      midas.MidasCompiler(targetGenerator, testDir)
+      midas.MidasCompiler(targetGenerator, testDir)(midasParams)
     case "strober" =>
       midas.MidasCompiler(targetGenerator, testDir)(
-        p alter Map(midas.EnableSnapshot -> true))
+        midasParams alter Map(midas.EnableSnapshot -> true))
     case "replay" =>
       strober.replay.Compiler(targetGenerator, testDir)
   }

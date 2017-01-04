@@ -1,12 +1,8 @@
-base_dir = $(abspath .)
-simif_dir = $(base_dir)/midas/src/main/cc
-testbench_dir = $(base_dir)/src/main/cc
-generated_dir ?= $(base_dir)/generated-src
-output_dir ?= $(base_dir)/output
-
 ##################
 #   Parameters   #
 ##################
+PLATFORM ?= zynq
+#PLATFORM ?= catapult
 EMUL ?= verilator
 PROJECT ?= midas.top
 DESIGN ?= MidasTop
@@ -14,13 +10,21 @@ CONFIG ?= DefaultExampleConfig
 # CONFIG ?= SmallBOOMConfig
 STROBER ?=
 SAMPLE ?=
-ARGS ?=
+ARGS ?= +dramsim
 
-testbench_h = $(addprefix $(testbench_dir)/, $(addsuffix .h, midas_top tsi))
-emul_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_emul tsi))
-zynq_cc = $(addprefix $(testbench_dir)/, $(addsuffix .cc, midas_top_zynq tsi))
-simif_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.cc)
-simif_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc)
+base_dir = $(abspath .)
+simif_dir = $(base_dir)/midas/src/main/cc
+driver_dir = $(base_dir)/src/main/cc
+generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
+output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
+
+driver_h = $(addprefix $(driver_dir)/, $(addsuffix .h, midas_top midas_tsi))
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_tsi))
+$(PLATFORM)_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_$(PLATFORM) midas_tsi))
+midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
+	$(wildcard $(simif_dir)/endpoints/*.h)
+midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
+	$(wildcard $(simif_dir)/endpoints/*.cc)
 
 SBT ?= sbt
 SBT_FLAGS ?=
@@ -30,13 +34,20 @@ submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-e
 	testchipip boom chisel firrtl midas
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
-$(generated_dir)/$(CONFIG)/ZynqShim.v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run $(if $(STROBER),strober,midas) $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
+shim := $(shell echo $(PLATFORM) | cut -c 1 | tr [:lower:] [:upper:])$(shell echo $(PLATFORM) | cut -c 2-)Shim
 
-compile: $(generated_dir)/$(CONFIG)/ZynqShim.v
+verilog = $(generated_dir)/$(shim).v
+$(verilog): $(chisel_srcs)
+	$(SBT) $(SBT_FLAGS) \
+	"run $(if $(STROBER),strober,midas) $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PLATFORM)"
+
+header = $(generated_dir)/$(DESIGN)-const.h
+$(header): $(verilog)
+
+compile: $(generated_dir)/ZynqShim.v
 
 ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
--include $(generated_dir)/$(CONFIG)/$(PROJECT).d
+-include $(generated_dir)/$(PROJECT).d
 endif
 
 timeout_cycles = 100000000
@@ -49,19 +60,19 @@ endif
 ######################
 # Veriltor Emulation #
 ######################
-verilator = $(generated_dir)/$(CONFIG)/V$(DESIGN)
-verilator_debug = $(generated_dir)/$(CONFIG)/V$(DESIGN)-debug
+verilator = $(generated_dir)/V$(DESIGN)
+verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 
 $(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) verilator DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(emul_cc)"
+$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
+	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(verilator_debug): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) verilator-debug DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(emul_cc)"
+$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+	$(MAKE) -C $(simif_dir) verilator-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
+	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
 verilator: $(verilator)
 verilator-debug: $(verilator_debug)
@@ -69,19 +80,19 @@ verilator-debug: $(verilator_debug)
 ######################
 #   VCS Emulation    #
 ######################
-vcs = $(generated_dir)/$(CONFIG)/$(DESIGN)
-vcs_debug = $(generated_dir)/$(CONFIG)/$(DESIGN)-debug
+vcs = $(generated_dir)/$(DESIGN)
+vcs_debug = $(generated_dir)/$(DESIGN)-debug
 
 $(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
 $(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(vcs): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) vcs DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(emul_cc)"
+$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+	$(MAKE) -C $(simif_dir) vcs PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
+	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(vcs_debug): $(emul_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) vcs-debug DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	TESTBENCH="$(emul_cc)"
+$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+	$(MAKE) -C $(simif_dir) vcs-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
+	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
 vcs: $(vcs)
 vcs-debug: $(vcs_debug)
@@ -100,24 +111,24 @@ $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
 # TODO: veriltor compilation with --trace is extremley slow...
-$(output_dir)/%.vpd: $(output_dir)/% $(vcs_debug)
-	cd $(dir $(word 2, $^)) && \
-	./$(notdir $(word 2, $^)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
+$(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
+	cd $(dir $($(EMUL)_debug)) && \
+	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 ######################
 #   Smaple Replays   #
 ######################
 
-$(generated_dir)/$(CONFIG)/$(DESIGN).v: $(chisel_srcs)
+$(generated_dir)/$(DESIGN).v: $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) "run replay $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
 
-compile-replay: $(generated_dir)/$(CONFIG)/$(DESIGN).v
+compile-replay: $(generated_dir)/$(DESIGN).v
 
-vcs_replay = $(generated_dir)/$(CONFIG)/$(DESIGN)-replay
+vcs_replay = $(generated_dir)/$(DESIGN)-replay
 
-$(vcs_replay): $(generated_dir)/$(CONFIG)/$(DESIGN).v $(simif_cc) $(simif_h)
-	$(MAKE) -C $(simif_dir) vcs-replay DESIGN=$(DESIGN) GEN_DIR=$(dir $<)
+$(vcs_replay): $(generated_dir)/$(DESIGN).v $(midas_cc) $(midas_h)
+	$(MAKE) -C $(simif_dir) vcs-replay PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) GEN_DIR=$(dir $<)
 
 vcs-replay: $(vcs_replay)
 ifdef SAMPLE
@@ -134,66 +145,65 @@ $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
 ######################
 #   FPGA Simulation  #
 ######################
+$(output_dir)/$(DESIGN).chain: $(verilog)
+	$(if $(wildcard $(generated_dir)/$(DESIGN).chain),cp $(generated_dir)/$(DESIGN).chain $@,)
 
+$(PLATFORM) = $(output_dir)/$(DESIGN)-$(PLATFORM)
+
+$(PLATFORM): $($(PLATFORM)) $(output_dir)/$(DESIGN).chain
+
+ifeq ($(PLATFORM),zynq)
 # Compile Frontend Server
 host = arm-xilinx-linux-gnueabi
 fesvr_dir = $(base_dir)/riscv-fesvr
 
-$(generated_dir)/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
+$(output_dir)/build/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
 	mkdir -p $(dir $@)
-	cd $(generated_dir) && $(fesvr_dir)/configure --host=$(host)
-	$(MAKE) -C $(generated_dir)
+	cd $(dir $@) && $(fesvr_dir)/configure --host=$(host)
+	$(MAKE) -C $(dir $@)
 
-$(output_dir)/$(CONFIG)/libfesvr.so: $(generated_dir)/libfesvr.so
+$(output_dir)/libfesvr.so: $(output_dir)/build/libfesvr.so
 	mkdir -p $(dir $@)
 	cp $< $@
 
 # Compile Driver
-zynq = $(output_dir)/$(CONFIG)/$(DESIGN)-zynq
-
-$(zynq): $(zynq_cc) $(testbench_h) $(generated_dir)/$(CONFIG)/ZynqShim.v $(simif_cc) $(simif_h) $(output_dir)/$(CONFIG)/libfesvr.so
-	$(MAKE) -C $(simif_dir) zynq DESIGN=$(DESIGN) GEN_DIR=$(generated_dir)/$(CONFIG) \
-	OUT_DIR=$(dir $@) TESTBENCH="$(zynq_cc)" \
+$($(PLATFORM)): $(header) $($(PLATFORM)_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
+	mkdir -p $(dir @)/build
+	cp $(header) $(dir $@)/build/
+	$(MAKE) -C $(simif_dir) $(PLATFORM) PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
+	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$($(PLATFORM)_cc)" \
 	CXX="$(host)-g++" \
-	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include -DZYNQ" \
-	LDFLAGS="$(LDFLAGS) -L$(output_dir)/$(CONFIG) -lfesvr -Wl,-rpath,/usr/local/lib"
-
-$(output_dir)/$(CONFIG)/$(DESIGN).chain: $(generated_dir)/$(CONFIG)/ZynqShim.v
-	if [ -a $(generated_dir)/$(CONFIG)/$(DESIGN).chain ]; then \
-	  cp $(generated_dir)/$(CONFIG)/$(DESIGN).chain $@; \
-	fi
-
-zynq: $(zynq) $(output_dir)/$(CONFIG)/$(DESIGN).chain
+	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include" \
+	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 
 # Generate Bitstream
 board     ?= zc706
-board_dir := $(base_dir)/midas-zynq/$(board)
+board_dir := $(base_dir)/midas-$(PLATFORM)/$(board)
 bitstream := fpga-images-$(board)/boot.bin
 
-$(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(generated_dir)/$(CONFIG)/ZynqShim.v
+$(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(verilog)
 	$(MAKE) -C $(board_dir) clean DESIGN=$(CONFIG)
 	mkdir -p $(dir $@)
 	cp $< $@
 
-$(output_dir)/$(CONFIG)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
+$(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
 	mkdir -p $(dir $@)
 	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
 	cp $(board_dir)/$(bitstream) $@
 
-$(output_dir)/$(CONFIG)/midas_wrapper.bit: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
+$(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/ZynqShim.v
 	mkdir -p $(dir $@)
 	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
 
-fpga: $(output_dir)/$(CONFIG)/boot.bin $(output_dir)/$(CONFIG)/midas_wrapper.bit
+fpga: $(output_dir)/boot.bin $(output_dir)/midas_wrapper.bit
+endif
 
 mostlyclean:
-	rm -rf $(verilator) $(verilator_debug) $(vcs) $(vcs_debug) $(zynq)
-	rm -rf $(output_dir)/*.run $(output_dir)/*.out $(output_dir)/*.vpd $(output_dir)/*.sample
-	rm -rf $(output_dir)/$(CONFIG)
+	rm -rf $(verilator) $(verilator_debug) $(vcs) $(vcs_debug) $($(PLATFORM)) $(output_dir)
 
 clean:
 	rm -rf $(generated_dir) $(output_dir)
 
-.PHONY: compile verilator verilator-debug vcs vcs-debug zynq fpga mostlyclean clean
+.PHONY: verilog compile verilator verilator-debug vcs vcs-debug $(PLATFORM) fpga mostlyclean clean
 
 .PRECIOUS: $(output_dir)/%.vpd $(output_dir)/%.out $(output_dir)/%.run

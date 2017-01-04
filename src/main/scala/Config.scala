@@ -6,7 +6,7 @@ import dram_midas._
 
 class WithLBPipe extends Config(
   (key, _, _) => key match {
-    case widgets.MemModelKey => Some((p: Parameters) => new MidasMemModel(
+    case MemModelKey => Some((p: Parameters) => new MidasMemModel(
       new LatencyPipeConfig(new BaseParams(maxReads = 16, maxWrites = 16)))(p))
   }
 )

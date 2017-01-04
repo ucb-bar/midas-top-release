@@ -1,24 +1,8 @@
 #ifndef __TSI_H
 #define __TSI_H
 
-#ifdef ZYNQ // TODO: it's awkward to have different tsi's
-
-#include <fesvr/tsi.h>
-
-class tsi_midas_t : public tsi_t
-{
- public:
-  tsi_midas_t(const std::vector<std::string>& target_args);
- protected:
-  void idle() override;
- private:
-  size_t idle_counts;
-};
-
-#else
-
 #include <fesvr/htif.h>
-#include "context.h"
+#include "midas_context.h"
 
 #include <string>
 #include <vector>
@@ -31,21 +15,16 @@ class tsi_midas_t : public tsi_t
 #define TSI_ADDR_CHUNKS 2
 #define TSI_LEN_CHUNKS 2
 
-class tsi_midas_t : public htif_t
+class midas_tsi_t : public htif_t
 {
  public:
-  tsi_midas_t(const std::vector<std::string>& target_args);
-  virtual ~tsi_midas_t();
+  midas_tsi_t(const std::vector<std::string>& args);
+  virtual ~midas_tsi_t();
 
   bool data_available();
   void send_word(uint32_t word);
   uint32_t recv_word();
   void switch_to_host();
-
-  uint32_t in_bits() { return in_data.front(); }
-  bool in_valid() { return !in_data.empty(); }
-  bool out_ready() { return true; }
-  void tick(bool out_valid, uint32_t out_bits, bool in_ready);
 
  protected:
   void reset() override;
@@ -60,8 +39,8 @@ class tsi_midas_t : public htif_t
   int get_ipi_addrs(addr_t *addrs);
 
  private:
-  context_t host;
-  context_t* target;
+  midas_context_t host;
+  midas_context_t* target;
   std::deque<uint32_t> in_data;
   std::deque<uint32_t> out_data;
   size_t idle_counts;
@@ -71,7 +50,5 @@ class tsi_midas_t : public htif_t
 
   static int host_thread(void *tsi);
 };
-
-#endif // ZYNQ
 
 #endif // __TSI_H
