@@ -1,11 +1,15 @@
+#ifndef __MIDAS_TOP_H
+#define __MIDAS_TOP_H
+
 #include "simif.h"
+#include "serial.h"
 #include "midas_tsi.h"
 #include "endpoints/sim_mem.h"
 
 class midas_top_t: virtual simif_t
 {
 public:
-  midas_top_t(int argc, char** argv): mem(this, argc, argv) {
+  midas_top_t(int argc, char** argv): mem(this, argc, argv), serial(this) {
     std::vector<std::string> args(argv + 1, argv + argc);
     tsi = new midas_tsi_t(args);
     max_cycles = -1;
@@ -29,24 +33,24 @@ public:
     uint64_t start_time = timestamp();
 
     size_t delta = 0;
-    bool in_valid = false;
-    bool out_ready = false, out_valid;
+    serial_data_t data;
+    data.in.valid = false;
+    data.out.ready = false;
 
     do {
-      if ((peek(io_serial_in_ready) && in_valid) || !in_valid) {
-        poke(io_serial_in_valid, in_valid = tsi->data_available());
-        if (in_valid) poke(io_serial_in_bits, tsi->recv_word());
+      serial.recv(data);
+      if (data.in.fire() || !data.in.valid) {
+        if ((data.in.valid = tsi->data_available()))
+          data.in.bits = tsi->recv_word();
       }
-      if ((out_valid = peek(io_serial_out_valid)) && out_ready) {
-        tsi->send_word(peek(io_serial_out_bits));
-      }
+      if (data.out.fire()) tsi->send_word(data.out.bits);
+      data.out.ready = data.out.valid;
+      serial.send(data);
       tsi->switch_to_host();
-      if (in_valid || out_valid) {
-        poke(io_serial_out_ready, out_ready = out_valid);
+      if (data.in.valid || data.out.valid) {
         step(1, false);
         if (--delta == 0) delta = step_size;
       } else {
-        poke(io_serial_out_ready, out_ready = false);
         step(delta, false);
         delta = step_size;
       }
@@ -74,6 +78,9 @@ public:
 
 private:
   sim_mem_t mem;
+  serial_t serial;
   midas_tsi_t *tsi;
   uint64_t max_cycles;
 };
+
+#endif // __MIDAS_TOP_H

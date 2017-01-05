@@ -1,5 +1,5 @@
-#ifndef __TSI_H
-#define __TSI_H
+#ifndef __MIDAS_TSI_H
+#define __MIDAS_TSI_H
 
 #include <fesvr/htif.h>
 #include "midas_context.h"
@@ -51,4 +51,4 @@ class midas_tsi_t : public htif_t
   static int host_thread(void *tsi);
 };
 
-#endif // __TSI_H
+#endif // __MIDAS_TSI_H

@@ -18,7 +18,7 @@ driver_dir = $(base_dir)/src/main/cc
 generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
 output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
-driver_h = $(addprefix $(driver_dir)/, $(addsuffix .h, midas_top midas_tsi))
+driver_h = $(wildcard $(driver_dir)/*.h)
 emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_tsi))
 $(PLATFORM)_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_$(PLATFORM) midas_tsi))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
@@ -110,7 +110,6 @@ $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
-# TODO: veriltor compilation with --trace is extremley slow...
 $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 	cd $(dir $($(EMUL)_debug)) && \
 	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
