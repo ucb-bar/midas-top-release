@@ -3,15 +3,15 @@
 
 #include "simif.h"
 #include "serial.h"
-#include "midas_tsi.h"
 #include "endpoints/sim_mem.h"
 
 class midas_top_t: virtual simif_t
 {
 public:
-  midas_top_t(int argc, char** argv): mem(this, argc, argv), serial(this) {
+  midas_top_t(int argc, char** argv): mem(this, argc, argv)
+  {
+    serial = NULL;
     std::vector<std::string> args(argv + 1, argv + argc);
-    tsi = new midas_tsi_t(args);
     max_cycles = -1;
     for (auto &arg: args) {
       if (arg.find("+max-cycles=") == 0) {
@@ -20,11 +20,12 @@ public:
     }
   }
 
-  ~midas_top_t() {
-    delete tsi;
-  }
+  ~midas_top_t() { }
+
+  void add(serial_t* s) { serial = s; }
 
   void run(size_t step_size) {
+    assert(serial);
     // set_tracelen(TRACE_MAX_LEN);
     mem.init();
     // Assert reset T=0 -> 5
@@ -38,15 +39,15 @@ public:
     data.out.ready = false;
 
     do {
-      serial.recv(data);
+      serial->recv(data);
       if (data.in.fire() || !data.in.valid) {
-        if ((data.in.valid = tsi->data_available()))
-          data.in.bits = tsi->recv_word();
+        data.in.valid = serial->fesvr_valid();
+        if (data.in.valid) data.in.bits = serial->fesvr_recv();
       }
-      if (data.out.fire()) tsi->send_word(data.out.bits);
+      if (data.out.fire()) serial->fesvr_send(data.out.bits);
       data.out.ready = data.out.valid;
-      serial.send(data);
-      tsi->switch_to_host();
+      serial->send(data);
+      serial->fesvr_tick();
       if (data.in.valid || data.out.valid) {
         step(1, false);
         if (--delta == 0) delta = step_size;
@@ -55,7 +56,7 @@ public:
         delta = step_size;
       }
       while (!done() || !mem.done()) mem.tick();
-    } while (!tsi->done() && cycles() <= max_cycles);
+    } while (!serial->fesvr_done() && cycles() <= max_cycles);
 
     uint64_t end_time = timestamp();
     double sim_time = (double) (end_time - start_time) / 1000000.0;
@@ -65,7 +66,7 @@ public:
     } else {
       fprintf(stderr, "time elapsed: %.1f s, simulation speed = %.2f KHz\n", sim_time, sim_speed);
     }
-    int exitcode = tsi->exit_code();
+    int exitcode = serial->fesvr_exitcode();
     if (exitcode) {
       fprintf(stderr, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
     } else if (cycles() > max_cycles) {
@@ -78,8 +79,7 @@ public:
 
 private:
   sim_mem_t mem;
-  serial_t serial;
-  midas_tsi_t *tsi;
+  serial_t* serial;
   uint64_t max_cycles;
 };
 

@@ -3,6 +3,7 @@
 
 #include <fesvr/htif.h>
 #include "midas_context.h"
+#include "serial.h"
 
 #include <string>
 #include <vector>
@@ -49,6 +50,43 @@ class midas_tsi_t : public htif_t
   void push_len(size_t len);
 
   static int host_thread(void *tsi);
+};
+
+class serial_tsi_t: public serial_t {
+public:
+  serial_tsi_t(simif_t* sim, int argc, char** argv): serial_t(sim),
+    tsi(new midas_tsi_t(std::vector<std::string>(argv + 1, argv + argc))) { }
+
+  ~serial_tsi_t() {
+    delete tsi;
+  }
+
+  virtual bool fesvr_valid() {
+    return tsi->data_available();
+  }
+
+  virtual uint32_t fesvr_recv() {
+    return tsi->recv_word();
+  }
+
+  virtual void fesvr_send(uint32_t data) {
+    tsi->send_word(data);
+  }
+
+  virtual void fesvr_tick() {
+    tsi->switch_to_host();
+  }
+
+  virtual bool fesvr_done() {
+    return tsi->done();
+  }
+
+  virtual int fesvr_exitcode() {
+    return tsi->exit_code();
+  }
+
+private:
+  midas_tsi_t* tsi;
 };
 
 #endif // __MIDAS_TSI_H
