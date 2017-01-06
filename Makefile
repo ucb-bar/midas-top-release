@@ -9,6 +9,7 @@ DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
 # CONFIG ?= SmallBOOMConfig
 STROBER ?=
+DRIVER ?=
 SAMPLE ?=
 ARGS ?= +dramsim
 
@@ -20,7 +21,6 @@ output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
 driver_h = $(wildcard $(driver_dir)/*.h)
 emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_fesvr midas_tsi))
-$(PLATFORM)_cc ?= $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_$(PLATFORM) midas_fesvr midas_tsi))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
 	$(wildcard $(simif_dir)/endpoints/*.h)
 midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
@@ -39,7 +39,8 @@ shim := $(shell echo $(PLATFORM) | cut -c 1 | tr [:lower:] [:upper:])$(shell ech
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) \
-	"run $(if $(STROBER),strober,midas) $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PLATFORM)"
+	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PLATFORM)"
+verilog: $(verilog)
 
 header = $(generated_dir)/$(DESIGN)-const.h
 $(header): $(verilog)
@@ -120,7 +121,7 @@ $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 ######################
 
 $(generated_dir)/$(DESIGN).v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run replay $(dir $@) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
 
 compile-replay: $(generated_dir)/$(DESIGN).v
 
@@ -145,16 +146,17 @@ $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
 #   FPGA Simulation  #
 ######################
 $(output_dir)/$(DESIGN).chain: $(verilog)
+	mkdir -p $(output_dir)
 	$(if $(wildcard $(generated_dir)/$(DESIGN).chain),cp $(generated_dir)/$(DESIGN).chain $@,)
 
 $(PLATFORM) = $(output_dir)/$(DESIGN)-$(PLATFORM)
 
 $(PLATFORM): $($(PLATFORM)) $(output_dir)/$(DESIGN).chain
 
+fesvr_dir = $(base_dir)/riscv-fesvr
 ifeq ($(PLATFORM),zynq)
 # Compile Frontend Server
 host = arm-xilinx-linux-gnueabi
-fesvr_dir = $(base_dir)/riscv-fesvr
 
 $(output_dir)/build/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
 	mkdir -p $(dir $@)
@@ -166,15 +168,51 @@ $(output_dir)/libfesvr.so: $(output_dir)/build/libfesvr.so
 	cp $< $@
 
 # Compile Driver
-$($(PLATFORM)): $(header) $($(PLATFORM)_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
+zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_zynq midas_fesvr midas_tsi))
+
+$(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(dir @)/build
 	cp $(header) $(dir $@)/build/
-	$(MAKE) -C $(simif_dir) $(PLATFORM) PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
-	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$($(PLATFORM)_cc)" \
+	$(MAKE) -C $(simif_dir) zynq PLATFORM=zynq DESIGN=$(DESIGN) \
+	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$(zynq_cc)" \
 	CXX="$(host)-g++" \
 	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include" \
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
+endif
 
+ifeq ($(PLATFORM),catapult)
+# Frontend Server: Should compile in Cygwin
+fesvr_files = elfloader htif memif syscall device rfb context term
+fesvr_h = $(addprefix $(fesvr_dir)/fesvr/, $(addsuffix .h, $(fesvr_files) configstring encoding elf))
+fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
+$(fesvr_o): $(output_dir)/build/%.o: $(fesvr_dir)/fesvr/%.cc $(fesvr_h)
+	mkdir -p $(output_dir)/build
+	g++ -DPREFIX="" -I$(fesvr_dir)/fesvr -std=c++11 -c -o $@ $<
+
+midas_fesvr_files = channel midas_fesvr mmap_fesvr
+midas_fesvr_h = $(addprefix $(driver_dir)/,       $(addsuffix .h, $(midas_fesvr_files)))
+midas_fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(midas_fesvr_files)))
+$(midas_fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/%.cc $(midas_fesvr_h)
+	mkdir -p $(output_dir)/build
+	g++ -I$(fesvr_dir) -std=c++11 -c -o $@ $<
+
+fesvr = $(output_dir)/midas-fesvr
+fesvr: $(fesvr)
+$(fesvr): $(fesvr_o) $(midas_fesvr_o)
+	g++ -o $@ $^
+
+# Compile Driver
+catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_catapult channel))
+
+$(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr)
+	mkdir -p $(dir @)/build
+	cp $(header) $(dir $@)/build/
+	$(MAKE) -C $(simif_dir) catapult PLATFORM=catapult DESIGN=$(DESIGN) \
+	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$(catapult_cc) $(DRIVER)" \
+	CXX=cl AR=lib CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
+endif
+
+ifeq ($(PLATFORM),zynq)
 # Generate Bitstream
 board     ?= zc706
 board_dir := $(base_dir)/midas-$(PLATFORM)/$(board)

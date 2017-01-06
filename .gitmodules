@@ -24,4 +24,4 @@
 	url = git@github.com:donggyukim/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr
-	url = git@github.com:riscv/riscv-fesvr.git
+	url = git@github.com:donggyukim/riscv-fesvr.git

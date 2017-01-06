@@ -15,7 +15,7 @@ midas_fesvr_t::~midas_fesvr_t(void)
 void midas_fesvr_t::reset()
 {
   uint32_t one = 1;
-  addr_t ipis[NHARTS_MAX];
+  reg_t ipis[NHARTS_MAX];
   int ncores = get_ipi_addrs(ipis);
 
   if (ncores == 0) {
@@ -27,7 +27,7 @@ void midas_fesvr_t::reset()
     write_chunk(ipis[i], sizeof(uint32_t), &one);
 }
 
-void midas_fesvr_t::push_addr(addr_t addr)
+void midas_fesvr_t::push_addr(reg_t addr)
 {
   uint32_t data[FESVR_ADDR_CHUNKS];
   for (int i = 0; i < FESVR_ADDR_CHUNKS; i++) {
@@ -47,7 +47,7 @@ void midas_fesvr_t::push_len(size_t len)
   write(data, FESVR_LEN_CHUNKS);
 }
 
-void midas_fesvr_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
+void midas_fesvr_t::read_chunk(reg_t taddr, size_t nbytes, void* dst)
 {
   const uint32_t cmd = FESVR_CMD_READ;
   uint32_t *result = static_cast<uint32_t*>(dst);
@@ -60,7 +60,7 @@ void midas_fesvr_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
   read(result, len);
 }
 
-void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
+void midas_fesvr_t::write_chunk(reg_t taddr, size_t nbytes, const void* src)
 {
   const uint32_t cmd = FESVR_CMD_WRITE;
   const uint32_t *src_data = static_cast<const uint32_t*>(src);
@@ -73,7 +73,7 @@ void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
   write(src_data, len);
 }
 
-int midas_fesvr_t::get_ipi_addrs(addr_t *ipis)
+int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)
 {
   const char *cfgstr = config_string.c_str();
   query_result res;

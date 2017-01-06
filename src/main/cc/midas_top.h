@@ -31,7 +31,7 @@ public:
 
     uint64_t start_time = timestamp();
 
-    size_t delta = 0;
+    size_t delta = step_size;
     serial_data_t data;
     data.in.valid = false;
     data.out.ready = false;

@@ -21,16 +21,16 @@ class midas_fesvr_t : public htif_t
 
  protected:
   virtual void reset();
-  virtual void read_chunk(addr_t taddr, size_t nbytes, void* dst);
-  virtual void write_chunk(addr_t taddr, size_t nbytes, const void* src);
+  virtual void read_chunk(reg_t taddr, size_t nbytes, void* dst);
+  virtual void write_chunk(reg_t taddr, size_t nbytes, const void* src);
 
   size_t chunk_align() { return 4; }
   size_t chunk_max_size() { return 1024; }
 
-  int get_ipi_addrs(addr_t *addrs);
+  int get_ipi_addrs(reg_t *addrs);
 
  private:
-  void push_addr(addr_t addr);
+  void push_addr(reg_t addr);
   void push_len(size_t len);
 
   virtual void read(uint32_t* data, size_t len) = 0;
