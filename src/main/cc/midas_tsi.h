@@ -1,43 +1,28 @@
 #ifndef __MIDAS_TSI_H
 #define __MIDAS_TSI_H
 
-#include <fesvr/htif.h>
 #include "midas_context.h"
-#include "serial.h"
+#include "midas_fesvr.h"
+#include "fesvr_proxy.h"
 
-#include <string>
-#include <vector>
-#include <deque>
-#include <stdint.h>
-
-#define TSI_CMD_READ 0
-#define TSI_CMD_WRITE 1
-
-#define TSI_ADDR_CHUNKS 2
-#define TSI_LEN_CHUNKS 2
-
-class midas_tsi_t : public htif_t
+class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
 {
  public:
   midas_tsi_t(const std::vector<std::string>& args);
   virtual ~midas_tsi_t();
-
-  bool data_available();
-  void send_word(uint32_t word);
-  uint32_t recv_word();
-  void switch_to_host();
+  virtual void tick();
+  virtual bool data_available();
+  virtual void send_word(uint32_t word);
+  virtual uint32_t recv_word();
+  virtual bool done() {
+    return midas_fesvr_t::done();
+  }
+  virtual int exit_code() {
+    return midas_fesvr_t::exit_code();
+  }
 
  protected:
-  void reset() override;
-  void idle() override;
-  void read_chunk(addr_t taddr, size_t nbytes, void* dst) override;
-  void write_chunk(addr_t taddr, size_t nbytes, const void* src) override;
-  void switch_to_target();
-
-  size_t chunk_align() { return 4; }
-  size_t chunk_max_size() { return 1024; }
-
-  int get_ipi_addrs(addr_t *addrs);
+  virtual void idle();
 
  private:
   midas_context_t host;
@@ -46,47 +31,10 @@ class midas_tsi_t : public htif_t
   std::deque<uint32_t> out_data;
   size_t idle_counts;
 
-  void push_addr(addr_t addr);
-  void push_len(size_t len);
+  virtual void read(uint32_t* data, size_t len);
+  virtual void write(const uint32_t* data, size_t len);
 
   static int host_thread(void *tsi);
-};
-
-class serial_tsi_t: public serial_t {
-public:
-  serial_tsi_t(simif_t* sim, int argc, char** argv): serial_t(sim),
-    tsi(new midas_tsi_t(std::vector<std::string>(argv + 1, argv + argc))) { }
-
-  ~serial_tsi_t() {
-    delete tsi;
-  }
-
-  virtual bool fesvr_valid() {
-    return tsi->data_available();
-  }
-
-  virtual uint32_t fesvr_recv() {
-    return tsi->recv_word();
-  }
-
-  virtual void fesvr_send(uint32_t data) {
-    tsi->send_word(data);
-  }
-
-  virtual void fesvr_tick() {
-    tsi->switch_to_host();
-  }
-
-  virtual bool fesvr_done() {
-    return tsi->done();
-  }
-
-  virtual int fesvr_exitcode() {
-    return tsi->exit_code();
-  }
-
-private:
-  midas_tsi_t* tsi;
 };
 
 #endif // __MIDAS_TSI_H

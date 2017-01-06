@@ -28,13 +28,6 @@ public:
     if (data.out.valid) data.out.bits = sim->peek(io_serial_out_bits);
   }
 
-  virtual bool fesvr_valid() = 0;
-  virtual uint32_t fesvr_recv() = 0;
-  virtual void fesvr_send(uint32_t) = 0;
-  virtual void fesvr_tick() = 0;
-  virtual bool fesvr_done() = 0;
-  virtual int fesvr_exitcode() = 0;
-
 private:
   simif_t* sim;
 };

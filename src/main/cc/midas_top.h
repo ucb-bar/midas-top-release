@@ -2,15 +2,16 @@
 #define __MIDAS_TOP_H
 
 #include "simif.h"
-#include "serial.h"
 #include "endpoints/sim_mem.h"
+#include "serial.h"
+#include "fesvr_proxy.h"
 
 class midas_top_t: virtual simif_t
 {
 public:
-  midas_top_t(int argc, char** argv): mem(this, argc, argv)
+  midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr):
+    serial(this), mem(this, argc, argv), fesvr(fesvr)
   {
-    serial = NULL;
     std::vector<std::string> args(argv + 1, argv + argc);
     max_cycles = -1;
     for (auto &arg: args) {
@@ -22,10 +23,7 @@ public:
 
   ~midas_top_t() { }
 
-  void add(serial_t* s) { serial = s; }
-
   void run(size_t step_size) {
-    assert(serial);
     // set_tracelen(TRACE_MAX_LEN);
     mem.init();
     // Assert reset T=0 -> 5
@@ -39,15 +37,15 @@ public:
     data.out.ready = false;
 
     do {
-      serial->recv(data);
+      serial.recv(data);
       if (data.in.fire() || !data.in.valid) {
-        data.in.valid = serial->fesvr_valid();
-        if (data.in.valid) data.in.bits = serial->fesvr_recv();
+        data.in.valid = fesvr->data_available();
+        if (data.in.valid) data.in.bits = fesvr->recv_word();
       }
-      if (data.out.fire()) serial->fesvr_send(data.out.bits);
+      if (data.out.fire()) fesvr->send_word(data.out.bits);
       data.out.ready = data.out.valid;
-      serial->send(data);
-      serial->fesvr_tick();
+      serial.send(data);
+      fesvr->tick();
       if (data.in.valid || data.out.valid) {
         step(1, false);
         if (--delta == 0) delta = step_size;
@@ -56,7 +54,7 @@ public:
         delta = step_size;
       }
       while (!done() || !mem.done()) mem.tick();
-    } while (!serial->fesvr_done() && cycles() <= max_cycles);
+    } while (!fesvr->done() && cycles() <= max_cycles);
 
     uint64_t end_time = timestamp();
     double sim_time = (double) (end_time - start_time) / 1000000.0;
@@ -66,7 +64,7 @@ public:
     } else {
       fprintf(stderr, "time elapsed: %.1f s, simulation speed = %.2f KHz\n", sim_time, sim_speed);
     }
-    int exitcode = serial->fesvr_exitcode();
+    int exitcode = fesvr->exit_code();
     if (exitcode) {
       fprintf(stderr, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
     } else if (cycles() > max_cycles) {
@@ -78,8 +76,9 @@ public:
   }
 
 private:
+  serial_t serial;
   sim_mem_t mem;
-  serial_t* serial;
+  fesvr_proxy_t* fesvr;
   uint64_t max_cycles;
 };
 

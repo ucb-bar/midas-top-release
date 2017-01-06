@@ -19,8 +19,8 @@ generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
 output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
 driver_h = $(wildcard $(driver_dir)/*.h)
-emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_tsi))
-$(PLATFORM)_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_$(PLATFORM) midas_tsi))
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_fesvr midas_tsi))
+$(PLATFORM)_cc ?= $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_$(PLATFORM) midas_fesvr midas_tsi))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
 	$(wildcard $(simif_dir)/endpoints/*.h)
 midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
