@@ -18,6 +18,19 @@ object MidasBuild extends Build {
     })
   )
 
+  lazy val addons = settingKey[Seq[String]]("addons used for this project")
+  val midasTopSettings = settings ++ Seq(
+    parallelExecution in Test := false,
+    addons := {
+      val a = sys.env getOrElse ("MIDASTOP_ADDONS", "")
+      println(s"Using addons: $a")
+      a split " "
+    },
+    unmanagedSourceDirectories in Compile ++= (
+      addons.value map (baseDirectory.value / _ / "src/main/scala")),
+    mainClass in (Compile, run) := Some("midas.top.MidasTopGenerator")
+  )
+
   lazy val firrtl     = project
   lazy val chisel     = project settings subModSettings
   // rocket has a ton of useful library components (notably junctions), and
@@ -30,6 +43,5 @@ object MidasBuild extends Build {
   lazy val boom       = project dependsOn rocket
   lazy val midas      = project dependsOn (rocket, firrtl)
   lazy val midasmem   = project in file("midas-memory-model") dependsOn midas
-  lazy val root       = project in file(".") settings (settings ++ Seq(
-    parallelExecution in Test := false)) dependsOn (midasmem, testchipip, boom)
+  lazy val root       = project in file(".") settings midasTopSettings dependsOn (midasmem, testchipip, boom)
 }

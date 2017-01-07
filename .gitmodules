@@ -25,3 +25,6 @@
 [submodule "fesvr"]
 	path = riscv-fesvr
 	url = git@github.com:donggyukim/riscv-fesvr.git
+[submodule "SimpleNIC"]
+	path = SimpleNIC
+	url = git@github.com:firesim/SimpleNIC.git
