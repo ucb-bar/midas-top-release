@@ -5,12 +5,18 @@
 #include "endpoints/sim_mem.h"
 #include "serial.h"
 #include "fesvr_proxy.h"
+#ifdef SIMPLE_NIC
+#include "switch.h"
+#endif
 
 class midas_top_t: virtual simif_t
 {
 public:
   midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr):
     serial(this), mem(this, argc, argv), fesvr(fesvr)
+#ifdef SIMPLE_NIC
+    , sw(this)
+#endif
   {
     std::vector<std::string> args(argv + 1, argv + argc);
     max_cycles = -1;
@@ -35,6 +41,11 @@ public:
     serial_data_t data;
     data.in.valid = false;
     data.out.ready = false;
+#ifdef SIMPLE_NIC
+    switch_data_t sw_data;
+    sw_data.in.value.is_empty = false;
+    sw_data.out.ready = true;
+#endif
 
     do {
       serial.recv(data);
@@ -46,7 +57,16 @@ public:
       data.out.ready = data.out.valid;
       serial.send(data);
       fesvr->tick();
-      if (data.in.valid || data.out.valid) {
+#ifdef SIMPLE_NIC
+      sw.recv(sw_data);
+      sw.tick(sw_data);
+      sw.send(sw_data);
+#endif
+      if (data.in.valid || data.out.valid
+#ifdef SIMPLE_NIC
+          || true // || !sw_data.in.value.is_empty || !sw_data.out.value.is_empty
+#endif
+         ) {
         step(1, false);
         if (--delta == 0) delta = step_size;
       } else {
@@ -79,6 +99,9 @@ private:
   serial_t serial;
   sim_mem_t mem;
   fesvr_proxy_t* fesvr;
+#ifdef SIMPLE_NIC
+  switch_t sw;
+#endif
   uint64_t max_cycles;
 };
 
