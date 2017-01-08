@@ -11,11 +11,7 @@ struct switch_data_t {
 class switch_t
 {
 public:
-  switch_t(simif_t* sim): sim(sim), sw(init_switch(1)) {
-    value.data = 0;
-    value.is_last = false;
-    value.is_empty = true;
-  }
+  switch_t(simif_t* sim): sim(sim), sw(init_switch(1)) { }
 
   void send(switch_data_t& data) {
     if (!data.in.value.is_empty) {
@@ -39,20 +35,17 @@ public:
   }
 
   void tick(switch_data_t& data) {
-#ifdef _WIN32
-// TODO
-#else
+    transport_value value;
     value.data = data.out.value.data;
     value.is_last = data.out.value.is_last;
     value.is_empty = data.out.value.is_empty;
+    step_switch_net(sw, &value);
     data.in.value.data = value.data;
     data.in.value.is_last = value.is_last;
     data.in.value.is_empty = value.is_empty;
-#endif
   }
 
 private:
   simif_t* sim;
   simpleswitch* sw;
-  transport_value value;
 };
