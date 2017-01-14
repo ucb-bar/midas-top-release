@@ -31,12 +31,20 @@ midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
 SBT ?= sbt
 SBT_FLAGS ?=
 
+ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
 submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
 	testchipip boom chisel firrtl midas
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
+mkdir = mkdir -p $(1)
+whitespace = "$(1)"
+else
+chisel_srcs = $(wildcard $(base_dir)/src/main/scala/*.scala)
+mkdir = mkdir.exe -p $(patsubst C:%,%,$(1))
+whitespace = $(shell echo $(1)| sed -e "s/ /\\ /g")
+endif
 
-shim := $(shell echo $(PLATFORM) | cut -c 1 | tr [:lower:] [:upper:])$(shell echo $(PLATFORM) | cut -c 2-)Shim
+shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo $(PLATFORM)| cut -c 2-)Shim
 
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
@@ -148,7 +156,7 @@ $(output_dir)/%-replay.vpd: $(output_dir)/%.sample $(vcs_replay)
 #   FPGA Simulation  #
 ######################
 $(output_dir)/$(DESIGN).chain: $(verilog)
-	mkdir -p $(output_dir)
+	$(call mkdir,$(output_dir))
 	$(if $(wildcard $(generated_dir)/$(DESIGN).chain),cp $(generated_dir)/$(DESIGN).chain $@,)
 
 $(PLATFORM) = $(output_dir)/$(DESIGN)-$(PLATFORM)
@@ -161,28 +169,29 @@ ifeq ($(PLATFORM),zynq)
 host = arm-xilinx-linux-gnueabi
 
 $(output_dir)/build/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
-	mkdir -p $(dir $@)
-	cd $(dir $@) && $(fesvr_dir)/configure --host=$(host)
-	$(MAKE) -C $(dir $@)
+	$(call mkdir,$(output_dir)/build)
+	cd $(output_dir)/build && $(fesvr_dir)/configure --host=$(host)
+	$(MAKE) -C $(output_dir)/build
 
 $(output_dir)/libfesvr.so: $(output_dir)/build/libfesvr.so
-	mkdir -p $(dir $@)
+	$(call mkdir,$(output_dir)/build)
 	cp $< $@
 
 # Compile Driver
 zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_zynq midas_fesvr midas_tsi))
 
 $(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
-	mkdir -p $(dir @)/build
-	cp $(header) $(dir $@)/build/
+	$(call mkdir,$(output_dir)/build)
+	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) zynq PLATFORM=zynq DESIGN=$(DESIGN) \
-	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$(zynq_cc)" \
+	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) DRIVER="$(zynq_cc)" \
 	CXX="$(host)-g++" \
 	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include" \
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 endif
 
 ifeq ($(PLATFORM),catapult)
+ifneq ($(SHELL),sh.exe)
 # Frontend Server: Should compile in Cygwin
 fesvr_files = elfloader htif memif syscall device rfb context term
 fesvr_h = $(addprefix $(fesvr_dir)/fesvr/, $(addsuffix .h, $(fesvr_files) configstring encoding elf))
@@ -195,23 +204,25 @@ midas_fesvr_files = channel midas_fesvr mmap_fesvr
 midas_fesvr_h = $(addprefix $(driver_dir)/,       $(addsuffix .h, $(midas_fesvr_files)))
 midas_fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(midas_fesvr_files)))
 $(midas_fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/%.cc $(midas_fesvr_h)
-	mkdir -p $(output_dir)/build
+	$(call mkdir,$(output_dir)/build)
 	g++ -I$(fesvr_dir) -std=c++11 -c -o $@ $<
 
 fesvr = $(output_dir)/midas-fesvr
 fesvr: $(fesvr)
 $(fesvr): $(fesvr_o) $(midas_fesvr_o)
 	g++ -o $@ $^
+endif
 
 # Compile Driver
 catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_catapult channel))
 
 $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr)
-	mkdir -p $(dir @)/build
-	cp $(header) $(dir $@)/build/
+	$(call mkdir,$(output_dir)/build)
+	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) catapult PLATFORM=catapult DESIGN=$(DESIGN) \
-	GEN_DIR=$(dir $@)/build OUT_DIR=$(dir $@) DRIVER="$(catapult_cc) $(DRIVER)" \
-	CXX=cl AR=lib CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
+	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) CXX=cl AR=lib \
+	DRIVER=$(call whitespace,$(catapult_cc) $(DRIVER)) \
+	CXXFLAGS=$(call whitespace,$(CXXFLAGS)) LDFLAGS=$(call whitespace,$(LDFLAGS))
 endif
 
 ifeq ($(PLATFORM),zynq)
@@ -222,16 +233,16 @@ bitstream := fpga-images-$(board)/boot.bin
 
 $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(verilog)
 	$(MAKE) -C $(board_dir) clean DESIGN=$(CONFIG)
-	mkdir -p $(dir $@)
+	$(call mkdir,$(dir $@))
 	cp $< $@
 
 $(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
-	mkdir -p $(dir $@)
+	$(call mkdir,$(output_dir))
 	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
 	cp $(board_dir)/$(bitstream) $@
 
 $(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/ZynqShim.v
-	mkdir -p $(dir $@)
+	$(call mkdir,$(output_dir))
 	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
 
 fpga: $(output_dir)/boot.bin $(output_dir)/midas_wrapper.bit
