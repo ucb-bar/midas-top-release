@@ -1,3 +1,6 @@
+#ifndef __SWITCH_H
+#define __SWITCH_H
+
 #include "simpleswitchcore.h"
 #include "channel.h"
 
@@ -26,6 +29,17 @@ public:
 #endif
 
   ~switch_t() {
+#ifdef __SWITCH__
+    bool ready;
+    do {
+      in.acquire();
+      if ((ready = in.ready())) {
+	in[4] = true; // finish
+	in.produce();
+      }
+      in.release();
+    } while(!ready);
+#endif
   }
 
   void send(switch_data_t& data) {
@@ -51,16 +65,20 @@ public:
 
   void tick(switch_data_t& data) {
 #ifdef __SWITCH__
-if (!data.out.value.is_empty) {
-  printf("data out: %llx, last: %d\n", data.out.value.data, data.out.value.is_last);
-  fflush(stdout);
-}
+#ifdef __DEBUG__
+    if (!data.out.value.is_empty) {
+      printf("data out: %llx, last: %d\n", data.out.value.data, data.out.value.is_last);
+      fflush(stdout);
+    }
+#endif
     send_switch(data.out.value);
-    recv_switch(data.in.value); 
-if (!data.in.value.is_empty) {
-  printf("data in: %llx, last: %d\n", data.in.value.data, data.in.value.is_last);
-  fflush(stdout);
-}
+    recv_switch(data.in.value);
+#ifdef __DEBUG__
+    if (!data.in.value.is_empty) {
+      printf("data in: %llx, last: %d\n", data.in.value.data, data.in.value.is_last);
+      fflush(stdout);
+    }
+#endif
 #else
     transport_value value;
     value.data = data.out.value.data;
@@ -84,11 +102,12 @@ private:
     do {
       in.acquire();
       if ((ready = in.ready())) {
-	in[0] = (value.data >> 32) & 0xffffffff;
+        in[0] = (value.data >> 32) & 0xffffffff;
         in[1] = value.data & 0xffffffff;
         in[2] = value.is_last;
         in[3] = value.is_empty;
-	in.produce();
+        in[4] = false; // finish
+        in.produce();
       }
       in.release();
     } while(!ready);
@@ -112,3 +131,5 @@ private:
   simpleswitch* sw;
 #endif
 };
+
+#endif // __SWITCH_H
