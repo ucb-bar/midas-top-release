@@ -34,7 +34,7 @@ SBT_FLAGS ?=
 ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
 submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	testchipip boom chisel firrtl midas
+	testchipip boom chisel firrtl midas $(MIDASTOP_ADDONS)
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 mkdir = mkdir -p $(1)
 whitespace = "$(1)"
@@ -165,7 +165,7 @@ $(PLATFORM): $($(PLATFORM)) $(output_dir)/$(DESIGN).chain
 
 # Compile Frontend Server
 host = $(if $(filter zynq, $(PLATFORM)),arm-xilinx-linux-gnueabi,)
-so = $(if $(filter catapult, $(PLATFORM)),.dll,$(so))
+so = $(if $(filter catapult, $(PLATFORM)),.dll,.so)
 fesvr_dir = $(base_dir)/riscv-fesvr
 
 ifeq ($(PLATFORM),catapult)
