@@ -27,6 +27,28 @@ bool not_done(fesvr_proxy_t* fesvr) {
 
 //
 
+void midas_top_t::loadmem() {
+  fesvr_loadmem_t loadmem; 
+  while (fesvr->recv_loadmem_req(loadmem)) {
+    assert(loadmem.size <= 1024);
+    static char buf[1024]; // This should be enough...
+    fesvr->recv_loadmem_data(buf, loadmem.size);
+#ifdef LOADMEM
+    const size_t mem_data_bytes = MEM_DATA_CHUNK * sizeof(data_t);
+#define WRITE_MEM(addr, src) \
+    biguint_t data((uint32_t*)(src), mem_data_bytes / sizeof(uint32_t)); \
+    write_mem(addr, data)
+#else
+    const size_t mem_data_bytes = MEM_DATA_BITS / 8;
+#define WRITE_MEM(addr, src) \
+    mem.write_mem(addr, src)
+#endif
+    for (size_t off = 0 ; off < loadmem.size ; off += mem_data_bytes) {
+      WRITE_MEM(loadmem.addr + off, buf + off);
+    }
+  }
+}
+
 void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
   size_t delta = step_size;
 
@@ -36,17 +58,7 @@ void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
     serial.send();
     fesvr->tick();
 
-    fesvr_loadmem_t loadmem; 
-    while (fesvr->recv_loadmem_req(loadmem)) {
-      const size_t mem_data_bytes = MEM_DATA_CHUNK * sizeof(data_t);
-      static char buf[1024]; // This should be enough...
-      assert(loadmem.size <= 1024);
-      fesvr->recv_loadmem_data(buf, loadmem.size);
-      for (size_t off = 0 ; off < loadmem.size ; off += mem_data_bytes) {
-        biguint_t data((uint32_t*)(buf + off), mem_data_bytes / sizeof(uint32_t));
-        write_mem(loadmem.addr + off, data);
-      }
-    }
+    loadmem();
 
 #ifdef SIMPLE_NIC
     sw.recv(sw_data);

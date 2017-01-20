@@ -21,9 +21,9 @@ driver_dir = $(base_dir)/src/main/cc
 generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
 output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
-driver_files = midas_top midas_fesvr serial
 driver_h = $(wildcard $(driver_dir)/*.h)
-emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_tsi $(driver_files)))
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_emul midas_tsi midas_top midas_fesvr serial))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
 	$(wildcard $(simif_dir)/endpoints/*.h)
 midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
@@ -195,7 +195,8 @@ $(output_dir)/libfesvr$(so): $(fesvr_dir)/build/libfesvr$(so)
 
 ifeq ($(PLATFORM),zynq)
 # Compile Driver
-zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_zynq midas_tsi $(driver_files)))
+zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_zynq midas_tsi midas_top midas_fesvr serial))
 
 $(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
 	$(call mkdir,$(output_dir)/build)
@@ -235,7 +236,7 @@ fesvr_h = $(addprefix $(driver_dir)/,       $(addsuffix .h, $(fesvr_files)))
 fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
 $(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/%.cc $(fesvr_h)
 	$(call mkdir,$(output_dir)/build)
-	g++ -I$(fesvr_dir) -std=c++11 -c -o $@ $<
+	g++ -I$(fesvr_dir) -std=c++11 -D__addr_t_defined -c -o $@ $<
 
 fesvr = $(output_dir)/midas-fesvr
 $(fesvr): $(fesvr_o) $(output_dir)/libfesvr$(so)
@@ -245,7 +246,8 @@ fesvr: $(fesvr)
 endif
 
 # Compile Driver
-catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_catapult channel $(driver_files)))
+catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_catapult channel midas_top serial))
 
 $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr)
 	$(call mkdir,$(output_dir)/build)

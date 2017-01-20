@@ -7,11 +7,23 @@ midas_fesvr_t::midas_fesvr_t(const std::vector<std::string>& args) : htif_t(args
 {
   is_loadmem = false;
   is_started = false;
+  idle_counts = 10;
+  for (auto& arg: args) {
+    if (arg.find("+idle-counts=") == 0) {
+      idle_counts = atoi(arg.c_str()+13);
+    }
+  }
 }
 
 midas_fesvr_t::~midas_fesvr_t(void)
 {
 }
+
+void midas_fesvr_t::idle()
+{
+  for (size_t i = 0 ; i < idle_counts ; i++) wait();
+}
+
 
 // Interrupt each core to make it start executing
 void midas_fesvr_t::reset()
@@ -66,4 +78,22 @@ void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
       write_mem(taddr + off, data);
     }
   }
+}
+
+uint64_t midas_fesvr_t::read_mem(addr_t addr) {
+  mem_reqs.push_back(fesvr_mem_t(false, addr)); 
+  while (rdata.empty()) wait();
+  uint64_t data = rdata.front();
+  rdata.pop_front();
+  return data;
+}
+
+void midas_fesvr_t::write_mem(addr_t addr, uint64_t data) {
+  mem_reqs.push_back(fesvr_mem_t(true, addr));
+  wdata.push_back(data);
+}
+
+void midas_fesvr_t::load_mem(addr_t addr, size_t nbytes, const void* src) {
+  loadmem_reqs.push_back(fesvr_loadmem_t(addr, nbytes));
+  loadmem_data.insert(loadmem_data.end(), (const char*)src, (const char*)src + nbytes);
 }
