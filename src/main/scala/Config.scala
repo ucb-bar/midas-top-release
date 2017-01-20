@@ -4,6 +4,8 @@ package top
 import cde.{Parameters, Config}
 import dram_midas._
 
+class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
+
 class WithLBPipe extends Config(
   (key, _, _) => key match {
     case MemModelKey => Some((p: Parameters) => new MidasMemModel(
@@ -11,16 +13,11 @@ class WithLBPipe extends Config(
   }
 )
 
-class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
-
-class DefaultExampleConfig extends Config(
-  new testchipip.WithSerialAdapter ++ new rocketchip.BaseConfig)
+class DefaultExampleConfig extends Config(new rocketchip.BaseConfig)
+class SmallBOOMConfig extends Config(new NoBrPred ++ new boom.SmallBOOMConfig)
 
 class NoBrPred extends Config(
   (key, _, _) => key match {
     case boom.EnableBranchPredictor => false
   }
 )
-
-class SmallBOOMConfig extends Config(
-  new NoBrPred ++ new testchipip.WithSerialAdapter ++ new boom.SmallBOOMConfig)

@@ -5,6 +5,8 @@
 
 midas_fesvr_t::midas_fesvr_t(const std::vector<std::string>& args) : htif_t(args)
 {
+  is_loadmem = false;
+  is_started = false;
 }
 
 midas_fesvr_t::~midas_fesvr_t(void)
@@ -25,52 +27,9 @@ void midas_fesvr_t::reset()
 
   for (int i = 0; i < ncores; i++)
     write_chunk(ipis[i], sizeof(uint32_t), &one);
-}
 
-void midas_fesvr_t::push_addr(reg_t addr)
-{
-  uint32_t data[FESVR_ADDR_CHUNKS];
-  for (int i = 0; i < FESVR_ADDR_CHUNKS; i++) {
-    data[i] = addr & 0xffffffff;
-    addr = addr >> 32;
-  }
-  write(data, FESVR_ADDR_CHUNKS);
-}
-
-void midas_fesvr_t::push_len(size_t len)
-{
-  uint32_t data[FESVR_LEN_CHUNKS];
-  for (int i = 0; i < FESVR_LEN_CHUNKS; i++) {
-    data[i] = len & 0xffffffff;
-    len = len >> 32;
-  }
-  write(data, FESVR_LEN_CHUNKS);
-}
-
-void midas_fesvr_t::read_chunk(reg_t taddr, size_t nbytes, void* dst)
-{
-  const uint32_t cmd = FESVR_CMD_READ;
-  uint32_t *result = static_cast<uint32_t*>(dst);
-  size_t len = nbytes / sizeof(uint32_t);
-
-  write(&cmd, 1);
-  push_addr(taddr);
-  push_len(len - 1);
-
-  read(result, len);
-}
-
-void midas_fesvr_t::write_chunk(reg_t taddr, size_t nbytes, const void* src)
-{
-  const uint32_t cmd = FESVR_CMD_WRITE;
-  const uint32_t *src_data = static_cast<const uint32_t*>(src);
-  size_t len = nbytes / sizeof(uint32_t);
-
-  write(&cmd, 1);
-  push_addr(taddr);
-  push_len(len - 1);
-
-  write(src_data, len);
+  is_started = true;
+  idle();
 }
 
 int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)
@@ -88,3 +47,23 @@ int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)
   }
 }
 
+void midas_fesvr_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
+{
+  for (size_t off = 0 ; off < nbytes ; off += sizeof(uint64_t)) {
+    uint64_t data = read_mem(taddr + off);
+    memcpy((char*)dst + off, &data, std::min(sizeof(uint64_t), nbytes - off));
+  }
+}
+
+void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
+{
+  if (is_loadmem) {
+    load_mem(taddr, nbytes, src);
+  } else {
+    for (size_t off = 0 ; off < nbytes ; off += sizeof(uint64_t)) {
+      uint64_t data;
+      memcpy(&data, (const char*)src + off, std::min(sizeof(uint64_t), nbytes - off));
+      write_mem(taddr + off, data);
+    }
+  }
+}

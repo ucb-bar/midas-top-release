@@ -11,11 +11,19 @@ class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
   midas_tsi_t(const std::vector<std::string>& args);
   virtual ~midas_tsi_t();
   virtual void tick();
-  virtual bool data_available();
-  virtual void send_word(uint32_t word);
-  virtual uint32_t recv_word();
+
+  virtual bool recv_mem_req(fesvr_mem_t& req);
+  virtual uint64_t recv_mem_wdata();
+  virtual void send_mem_rdata(uint64_t);
+
+  virtual bool recv_loadmem_req(fesvr_loadmem_t& req);
+  virtual void recv_loadmem_data(void* buf, size_t len);
+
   virtual bool done() {
     return midas_fesvr_t::done();
+  }
+  virtual bool started() {
+    return midas_fesvr_t::started();
   }
   virtual int exit_code() {
     return midas_fesvr_t::exit_code();
@@ -27,12 +35,16 @@ class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
  private:
   midas_context_t host;
   midas_context_t* target;
-  std::deque<uint32_t> in_data;
-  std::deque<uint32_t> out_data;
+  std::deque<fesvr_mem_t> mem_reqs;
+  std::deque<uint64_t> wdata;
+  std::deque<uint64_t> rdata;
+  std::deque<fesvr_loadmem_t> loadmem_reqs;
+  std::deque<char> loadmem_data;
   size_t idle_counts;
 
-  virtual void read(uint32_t* data, size_t len);
-  virtual void write(const uint32_t* data, size_t len);
+  virtual uint64_t read_mem(addr_t addr);
+  virtual void write_mem(addr_t addr, uint64_t data);
+  virtual void load_mem(addr_t addr, size_t nbytes, const void* src);
 
   static int host_thread(void *tsi);
 };
