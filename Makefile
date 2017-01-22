@@ -249,7 +249,7 @@ endif
 catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
 	midas_top_catapult channel midas_top serial))
 
-$(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr)
+$(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
 	$(call mkdir,$(output_dir)/build)
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) catapult PLATFORM=catapult DESIGN=$(DESIGN) \
