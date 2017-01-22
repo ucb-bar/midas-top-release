@@ -39,7 +39,7 @@ private:
   // channel[2] -> turn
   // channel[3] -> flag
   // channel[4:] -> data
-  volatile char* channel;
+  char volatile *channel;
   HANDLE file;
 };
 

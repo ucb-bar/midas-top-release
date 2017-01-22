@@ -55,10 +55,8 @@ void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
   do {
     serial.recv();
     serial.tick();
-    serial.send();
-    fesvr->tick();
-
     loadmem();
+    serial.send();
 
 #ifdef SIMPLE_NIC
     sw.recv(sw_data);

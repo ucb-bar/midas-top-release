@@ -56,4 +56,9 @@ void serial_t::tick() {
       }
       break;
   }
+  fesvr->tick(); 
+}
+
+bool serial_t::busy() {
+  return /* fesvr->busy() || */ data.in.valid || data.out.valid || state != s_idle;
 }

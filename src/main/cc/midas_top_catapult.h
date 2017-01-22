@@ -11,6 +11,7 @@ class fesvr_channel_t: public fesvr_proxy_t
 
    virtual void tick();
    virtual bool started() { return fesvr_started; }
+   virtual bool busy() { return !mem_reqs.empty(); }
    virtual bool done() { return fesvr_done; }
    virtual int exit_code() { return exitcode; }
 

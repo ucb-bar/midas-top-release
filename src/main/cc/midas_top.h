@@ -16,6 +16,7 @@ public:
   ~midas_top_t() { }
 
   void run(size_t step_size);
+  void loadmem();
 
 private:
   serial_t serial;
@@ -27,7 +28,6 @@ private:
 #endif
   uint64_t max_cycles;
 
-  void loadmem();
   void loop(size_t step_size, bool (*cond)(fesvr_proxy_t*));
 };
 

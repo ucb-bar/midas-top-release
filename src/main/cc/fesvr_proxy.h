@@ -26,6 +26,7 @@ public:
   virtual void recv_loadmem_data(void* buf, size_t len) = 0;
 
   virtual void tick() = 0;
+  virtual bool busy() = 0;
   virtual bool done() = 0;
   virtual bool started() = 0;
   virtual int exit_code() = 0;

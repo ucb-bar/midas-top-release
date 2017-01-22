@@ -11,7 +11,7 @@ public:
   void send();
   void recv();
   void tick();
-  bool busy() { return state != s_idle; }
+  bool busy();
 
 private:
   simif_t* sim;

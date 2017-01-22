@@ -21,7 +21,9 @@ midas_fesvr_t::~midas_fesvr_t(void)
 
 void midas_fesvr_t::idle()
 {
+#ifndef __CYGWIN__ // TODO: remove
   for (size_t i = 0 ; i < idle_counts ; i++) wait();
+#endif
 }
 
 

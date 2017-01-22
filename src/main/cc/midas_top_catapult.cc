@@ -1,6 +1,6 @@
 #include "midas_top_catapult.h"
 
-// #define __DEBUG__
+#define __DEBUG__
 
 fesvr_channel_t::fesvr_channel_t():
   in("in"), out("out")
@@ -59,8 +59,10 @@ void fesvr_channel_t::tick() {
         out[1] = rdata.front();
 	rdata.pop_front();
 #ifdef __DEBUG__
-        fprintf(stderr, "[fesvr_channel] read data: %llx\n", out[1]);
-        fflush(stderr);
+	if (out[1] != 0) {
+          fprintf(stderr, "[fesvr_channel] read data: %llx\n", out[1]);
+          fflush(stderr);
+	}
 #endif
       }
       out.produce();
@@ -94,8 +96,8 @@ void fesvr_channel_t::tick() {
 #endif
         } else {
 #ifdef __DEBUG__
-          fprintf(stderr, "[fesvr_channel] read addr: %llx\n", addr);
-          fflush(stderr);
+          // fprintf(stderr, "[fesvr_channel] read addr: %llx\n", addr);
+          // fflush(stderr);
 #endif
         }
       }
@@ -106,8 +108,8 @@ void fesvr_channel_t::tick() {
         loadmem_reqs.push_back(fesvr_loadmem_t(addr, size));
 	loadmem_data.insert(loadmem_data.end(), data, data + size);
 #ifdef __DEBUG__
-        fprintf(stderr, "[fesvr_channel] loadmem addr:%llx, size: %lld\n", addr, size);
-        fflush(stderr);
+        // fprintf(stderr, "[fesvr_channel] loadmem addr:%llx, size: %lld\n", addr, size);
+        // fflush(stderr);
 #endif
       }
       in.consume();
@@ -120,6 +122,6 @@ int main(int argc, char** argv) {
   fesvr_channel_t fesvr;
   midas_top_catapult_t midas_top(argc, argv, &fesvr);
   midas_top.init(argc, argv, false);
-  midas_top.run(128);
+  midas_top.run(256);
   return midas_top.finish();
 }
