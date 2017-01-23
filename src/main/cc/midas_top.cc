@@ -59,13 +59,13 @@ void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
     serial.send();
 
 #ifdef SIMPLE_NIC
-    sw.recv(sw_data);
-    sw.tick(sw_data);
-    sw.send(sw_data);
+    sw.recv();
+    sw.tick();
+    sw.send();
 #endif
     if (serial.busy()
 #ifdef SIMPLE_NIC
-        || true // || !sw_data.in.value.is_empty || !sw_data.out.value.is_empty
+        || sw.busy()
 #endif
        ) {
       step(1, false);
@@ -85,11 +85,6 @@ void midas_top_t::run(size_t step_size) {
   target_reset(0, 5);
 
   uint64_t start_time = timestamp();
-
-#ifdef SIMPLE_NIC
-  sw_data.in.value.is_empty = false;
-  sw_data.out.ready = true;
-#endif
 
   loop(1, not_started);
   // align cycles for snapshotting

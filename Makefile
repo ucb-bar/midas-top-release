@@ -247,7 +247,8 @@ endif
 
 # Compile Driver
 catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_catapult channel midas_top serial))
+	midas_top_catapult channel midas_top serial \
+	$(if $(filter SimpleNIC,$(MIDASTOP_ADDONS)),switch,)))
 
 $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
 	$(call mkdir,$(output_dir)/build)

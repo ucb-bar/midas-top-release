@@ -24,7 +24,6 @@ private:
   fesvr_proxy_t* fesvr;
 #ifdef SIMPLE_NIC
   switch_t sw;
-  switch_data_t sw_data;
 #endif
   uint64_t max_cycles;
 
