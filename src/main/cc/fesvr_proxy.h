@@ -28,7 +28,6 @@ public:
   virtual void tick() = 0;
   virtual bool busy() = 0;
   virtual bool done() = 0;
-  virtual bool started() = 0;
   virtual int exit_code() = 0;
 };
 

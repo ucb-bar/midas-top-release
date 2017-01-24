@@ -20,7 +20,7 @@ class midas_fesvr_t : public htif_t
   midas_fesvr_t(const std::vector<std::string>& args);
   virtual ~midas_fesvr_t();
   virtual void wait() = 0;
-  bool started() { return is_started; }
+  bool busy() { return is_busy; }
 
  protected:
   virtual void idle();
@@ -46,8 +46,8 @@ class midas_fesvr_t : public htif_t
   std::deque<char> loadmem_data;
 
  private:
+  bool is_busy;
   bool is_loadmem;
-  bool is_started;
   size_t idle_counts;
 
   virtual uint64_t read_mem(addr_t addr);

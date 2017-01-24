@@ -40,7 +40,7 @@ void mmap_fesvr_t::wait() {
   do {
     in.acquire();
     if ((ready = in.ready())) {
-      in[0] = started();
+      in[0] = busy();
       in[1] = done();
       in[2] = exit_code();
       in[3] = mem_reqs.empty();

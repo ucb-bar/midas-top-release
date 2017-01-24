@@ -1,6 +1,6 @@
 #include "midas_top_catapult.h"
 
-// #define __DEBUG__
+#define __DEBUG__
 
 fesvr_channel_t::fesvr_channel_t():
   in("in"), out("out")
@@ -75,7 +75,7 @@ void fesvr_channel_t::tick() {
   do {
     in.acquire();
     if ((valid = in.valid())) {
-      fesvr_started = in[0];
+      fesvr_busy = in[0];
       fesvr_done = in[1];
       exitcode = in[2];
 #ifdef __DEBUG__

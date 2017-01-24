@@ -15,18 +15,6 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr):
   }
 }
 
-// condition functions
-
-bool not_started(fesvr_proxy_t* fesvr) {
-  return !fesvr->started();
-}
-
-bool not_done(fesvr_proxy_t* fesvr) {
-  return !fesvr->done();
-}
-
-//
-
 void midas_top_t::loadmem() {
   fesvr_loadmem_t loadmem; 
   while (fesvr->recv_loadmem_req(loadmem)) {
@@ -49,7 +37,7 @@ void midas_top_t::loadmem() {
   }
 }
 
-void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
+void midas_top_t::loop(size_t step_size) {
   size_t delta = step_size;
 
   do {
@@ -75,7 +63,7 @@ void midas_top_t::loop(size_t step_size, bool (*cond)(fesvr_proxy_t*)) {
       delta = step_size;
     }
     while (!done() || !mem.done()) mem.tick();
-  } while (cond(fesvr) && cycles() <= max_cycles);
+  } while (!fesvr->done() && cycles() <= max_cycles);
 }
 
 void midas_top_t::run(size_t step_size) {
@@ -86,12 +74,7 @@ void midas_top_t::run(size_t step_size) {
 
   uint64_t start_time = timestamp();
 
-  loop(1, not_started);
-  // align cycles for snapshotting
-  step(cycles() % step_size, false);
-  while(!done() || !mem.done()) mem.tick();
-  //
-  loop(step_size, not_done); 
+  loop(step_size);
 
   uint64_t end_time = timestamp();
   double sim_time = diff_secs(end_time, start_time);

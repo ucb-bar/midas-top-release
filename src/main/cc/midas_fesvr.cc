@@ -6,7 +6,7 @@
 midas_fesvr_t::midas_fesvr_t(const std::vector<std::string>& args) : htif_t(args)
 {
   is_loadmem = false;
-  is_started = false;
+  is_busy = false;
   idle_counts = 10;
   for (auto& arg: args) {
     if (arg.find("+idle-counts=") == 0) {
@@ -21,9 +21,9 @@ midas_fesvr_t::~midas_fesvr_t(void)
 
 void midas_fesvr_t::idle()
 {
-#ifndef __CYGWIN__ // TODO: remove
+  is_busy = false;
   for (size_t i = 0 ; i < idle_counts ; i++) wait();
-#endif
+  is_busy = true;
 }
 
 
@@ -41,9 +41,6 @@ void midas_fesvr_t::reset()
 
   for (int i = 0; i < ncores; i++)
     write_chunk(ipis[i], sizeof(uint32_t), &one);
-
-  is_started = true;
-  idle();
 }
 
 int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)

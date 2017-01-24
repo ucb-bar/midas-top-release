@@ -27,7 +27,7 @@ private:
 #endif
   uint64_t max_cycles;
 
-  void loop(size_t step_size, bool (*cond)(fesvr_proxy_t*));
+  void loop(size_t step_size);
 };
 
 #endif // __MIDAS_TOP_H

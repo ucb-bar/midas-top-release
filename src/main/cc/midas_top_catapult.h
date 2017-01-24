@@ -10,8 +10,7 @@ class fesvr_channel_t: public fesvr_proxy_t
    ~fesvr_channel_t();
 
    virtual void tick();
-   virtual bool started() { return fesvr_started; }
-   virtual bool busy() { return !mem_reqs.empty(); }
+   virtual bool busy() { return fesvr_busy; }
    virtual bool done() { return fesvr_done; }
    virtual int exit_code() { return exitcode; }
 
@@ -30,7 +29,7 @@ class fesvr_channel_t: public fesvr_proxy_t
    std::deque<uint64_t> rdata;
    std::deque<fesvr_loadmem_t> loadmem_reqs;
    std::deque<char> loadmem_data;
-   bool fesvr_started;
+   bool fesvr_busy;
    bool fesvr_done;
    int exitcode;
 };
