@@ -22,7 +22,8 @@ generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
 output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
 driver_h = $(wildcard $(driver_dir)/*.h)
-emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul midas_fesvr midas_tsi))
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_emul midas_tsi midas_top midas_fesvr serial))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
 	$(wildcard $(simif_dir)/endpoints/*.h)
 midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
@@ -34,7 +35,7 @@ SBT_FLAGS ?=
 ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
 submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	testchipip boom chisel firrtl midas $(MIDASTOP_ADDONS)
+	boom chisel firrtl midas $(MIDASTOP_ADDONS)
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 mkdir = mkdir -p $(1)
 whitespace = "$(1)"
@@ -55,11 +56,22 @@ verilog: $(verilog)
 header = $(generated_dir)/$(DESIGN)-const.h
 $(header): $(verilog)
 
-compile: $(generated_dir)/ZynqShim.v
+compile: $(verilog)
 
 ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
 -include $(generated_dir)/$(PROJECT).d
 endif
+
+param_file = $(generated_dir)/$(PROJECT).prm
+consts_header = $(generated_dir)/$(PROJECT).h
+
+$(param_file): $(verilog)
+
+$(consts_header): $(param_file)
+	echo "#ifndef __PARAM_CONST_H__" > $@
+	echo "#define __PARAM_CONST_H__" >> $@
+	sed -E 's/\(([A-Za-z0-9_]+),([A-Za-z0-9_]+)\)/#define \1 \2L/' $< >> $@
+	echo "#endif // __PARAM_CONST_H__" >> $@
 
 timeout_cycles = 100000000
 disasm := 2>
@@ -74,14 +86,14 @@ endif
 verilator = $(generated_dir)/V$(DESIGN)
 verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 
-$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
+$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include -include $(consts_header)
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
 	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
 	$(MAKE) -C $(simif_dir) verilator-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -97,11 +109,11 @@ vcs_debug = $(generated_dir)/$(DESIGN)-debug
 $(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
 $(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
 	$(MAKE) -C $(simif_dir) vcs PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
 	$(MAKE) -C $(simif_dir) vcs-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -183,7 +195,8 @@ $(output_dir)/libfesvr$(so): $(fesvr_dir)/build/libfesvr$(so)
 
 ifeq ($(PLATFORM),zynq)
 # Compile Driver
-zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_zynq midas_fesvr midas_tsi))
+zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_zynq midas_tsi midas_top midas_fesvr serial))
 
 $(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
 	$(call mkdir,$(output_dir)/build)
@@ -199,18 +212,17 @@ board     ?= zc706
 board_dir := $(base_dir)/midas-$(PLATFORM)/$(board)
 bitstream := fpga-images-$(board)/boot.bin
 
-$(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v: $(verilog)
+$(board_dir)/src/verilog/$(CONFIG)/$(shim).v: $(verilog)
 	$(MAKE) -C $(board_dir) clean DESIGN=$(CONFIG)
 	$(call mkdir,$(dir $@))
 	cp $< $@
 
-$(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/ZynqShim.v
+$(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
 	$(call mkdir,$(output_dir))
 	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
 	cp $(board_dir)/$(bitstream) $@
 
-$(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/ZynqShim.v
-	$(call mkdir,$(output_dir))
+$(output_dir)/midas_wrapper.bit: $(output_dir)/boot.bin
 	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
 
 fpga: $(output_dir)/boot.bin $(output_dir)/midas_wrapper.bit
@@ -224,7 +236,7 @@ fesvr_h = $(addprefix $(driver_dir)/,       $(addsuffix .h, $(fesvr_files)))
 fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
 $(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/%.cc $(fesvr_h)
 	$(call mkdir,$(output_dir)/build)
-	g++ -I$(fesvr_dir) -std=c++11 -c -o $@ $<
+	g++ -I$(fesvr_dir) -std=c++11 -D__addr_t_defined -c -o $@ $<
 
 fesvr = $(output_dir)/midas-fesvr
 $(fesvr): $(fesvr_o) $(output_dir)/libfesvr$(so)
@@ -234,18 +246,17 @@ fesvr: $(fesvr)
 endif
 
 # Compile Driver
-catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_catapult channel))
+catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_catapult channel midas_top serial \
+	$(if $(filter SimpleNIC,$(MIDASTOP_ADDONS)),switch,)))
 
-$(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr)
+$(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
 	$(call mkdir,$(output_dir)/build)
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) catapult PLATFORM=catapult DESIGN=$(DESIGN) \
 	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) CXX=cl AR=lib \
 	DRIVER=$(call whitespace,$(catapult_cc) $(DRIVER)) \
 	CXXFLAGS=$(call whitespace,$(CXXFLAGS)) LDFLAGS=$(call whitespace,$(LDFLAGS))
-endif
-
-ifeq ($(PLATFORM),zynq)
 endif
 
 mostlyclean:

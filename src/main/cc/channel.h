@@ -30,8 +30,8 @@ public:
   inline void consume() { channel[3] = 0; }
   inline bool ready() { return channel[3] == 0; }
   inline bool valid() { return channel[3] == 1; }
-  inline uint32_t* data() { return (uint32_t*)(channel + 4); }
-  inline uint32_t& operator[](int i) { return data()[i]; }
+  inline uint64_t* data() { return (uint64_t*)(channel + 4); }
+  inline uint64_t& operator[](int i) { return data()[i]; }
 private:
   // Dekker's algorithm for sync
   // channel[0] -> fesvr
@@ -39,7 +39,7 @@ private:
   // channel[2] -> turn
   // channel[3] -> flag
   // channel[4:] -> data
-  volatile char* channel;
+  char volatile *channel;
   HANDLE file;
 };
 

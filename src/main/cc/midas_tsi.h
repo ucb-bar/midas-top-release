@@ -11,9 +11,17 @@ class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
   midas_tsi_t(const std::vector<std::string>& args);
   virtual ~midas_tsi_t();
   virtual void tick();
-  virtual bool data_available();
-  virtual void send_word(uint32_t word);
-  virtual uint32_t recv_word();
+
+  virtual bool recv_mem_req(fesvr_mem_t& req);
+  virtual uint64_t recv_mem_wdata();
+  virtual void send_mem_rdata(uint64_t);
+
+  virtual bool recv_loadmem_req(fesvr_loadmem_t& loadmem);
+  virtual void recv_loadmem_data(void* buf, size_t len);
+
+  virtual bool busy() {
+    return midas_fesvr_t::busy();
+  }
   virtual bool done() {
     return midas_fesvr_t::done();
   }
@@ -21,19 +29,11 @@ class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
     return midas_fesvr_t::exit_code();
   }
 
- protected:
-  virtual void idle();
-
  private:
   midas_context_t host;
   midas_context_t* target;
-  std::deque<uint32_t> in_data;
-  std::deque<uint32_t> out_data;
-  size_t idle_counts;
 
-  virtual void read(uint32_t* data, size_t len);
-  virtual void write(const uint32_t* data, size_t len);
-
+  virtual void wait();
   static int host_thread(void *tsi);
 };
 

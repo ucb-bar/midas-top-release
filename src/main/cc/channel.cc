@@ -1,6 +1,6 @@
 #include "channel.h"
 #include <cassert>
-#define BUF_SIZE 256
+#define BUF_SIZE 2048
 
 channel_t::channel_t(const char* fname)
 {
