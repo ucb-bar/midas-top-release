@@ -68,9 +68,12 @@ void midas_fesvr_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
 
 void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
 {
+#ifndef __CYGWIN__
   if (is_loadmem) {
     load_mem(taddr, nbytes, src);
-  } else {
+  } else
+#endif
+  {
     for (size_t off = 0 ; off < nbytes ; off += sizeof(uint64_t)) {
       uint64_t data;
       memcpy(&data, (const char*)src + off, std::min(sizeof(uint64_t), nbytes - off));
