@@ -11,6 +11,7 @@ import scala.reflect.ClassTag
 import java.io.{File, FileWriter}
 
 abstract class MidasTopTestSuite(
+    platform: midas.PlatformType,
     config: Config,
     snapshot: Boolean = false,
     memmodel: Boolean = false,
@@ -19,17 +20,18 @@ abstract class MidasTopTestSuite(
   import scala.concurrent.duration._
   import ExecutionContext.Implicits.global
 
-  implicit val p = Parameters.root(memmodel match {
-    case true => (new ZynqConfigWithMemModel).toInstance
-    case false => (new midas.ZynqConfig).toInstance
-  }) alter (Map(midas.EnableSnapshot -> snapshot))
-
+  implicit val p = Parameters.root((platform match {
+    case midas.Zynq if memmodel => new ZynqConfigWithMemModel
+    case midas.Zynq => new midas.ZynqConfig
+    case midas.Catapult => new midas.CatapultConfig
+  }).toInstance) alter Map(midas.EnableSnapshot -> snapshot)
   lazy val param = Parameters.root(config.toInstance)
+  lazy val platformName = platform.toString.toLowerCase
   lazy val configName = config.getClass.getSimpleName
-  lazy val makeArgs = Seq("DESIGN=MidasTop", s"CONFIG=$configName")
+  lazy val makeArgs = Seq(s"PLATFORM=$platformName", "DESIGN=MidasTop", s"CONFIG=$configName")
 
-  val genDir = new File("generated-src", configName) ; genDir.mkdirs
-  val outDir = new File("output", configName) ; outDir.mkdirs
+  val genDir = new File(new File("generated-src", platformName), configName) ; genDir.mkdirs
+  val outDir = new File(new File("output", platformName), configName) ; outDir.mkdirs
 
   lazy val design = LazyModule(new MidasTop(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
@@ -83,13 +85,19 @@ abstract class MidasTopTestSuite(
   }
 }
 
-class DefaultExampleTests extends MidasTopTestSuite(new DefaultExampleConfig) {
+abstract class DefaultExampleTests(platform: midas.PlatformType)
+    extends MidasTopTestSuite(platform, new DefaultExampleConfig) {
   bmarkSuites.values foreach runSuite("verilator")
   bmarkSuites.values foreach runSuite("vcs", true)
   regressionSuites.values foreach runSuite("verilator")
   regressionSuites.values foreach runSuite("vcs", true)
 }
-class SmallBOOMTests extends MidasTopTestSuite(new SmallBOOMConfig) {
+abstract class SmallBOOMTests(platform: midas.PlatformType)
+    extends MidasTopTestSuite(platform, new SmallBOOMConfig) {
   bmarkSuites.values foreach runSuite("verilator")
   bmarkSuites.values foreach runSuite("vcs", true)
 }
+
+class DefaultExampleZynqTests extends DefaultExampleTests(midas.Zynq)
+class DefaultExampleCatapultTests extends DefaultExampleTests(midas.Catapult)
+class SmallBOOMZynqTests extends SmallBOOMTests(midas.Zynq)

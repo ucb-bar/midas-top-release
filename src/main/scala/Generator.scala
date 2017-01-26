@@ -3,7 +3,6 @@ package top
 
 import cde._
 import rocketchip._
-import testchipip._
 import rocket.{XLen, UseVM, UseAtomics, UseCompressed, FPUKey}
 import diplomacy.LazyModule
 import util.{GeneratorApp, ParsedInputNames}
@@ -12,21 +11,21 @@ import java.io.File
 
 class MidasTop(q: Parameters) extends BaseTop(q)
     with PeripheryBootROM with PeripheryCoreplexLocalInterrupter
-    with PeripherySerial with PeripheryMasterMem {
+    with PeripheryFesvr with PeripheryMasterMem {
   override lazy val module = new MidasTopModule(p, this, new MidasTopBundle(p))
 }
 
 class MidasTopBundle(p: Parameters) extends BaseTopBundle(p)
     with PeripheryBootROMBundle with PeripheryCoreplexLocalInterrupterBundle
-    with PeripheryMasterMemBundle with PeripherySerialBundle {
+    with PeripheryMasterMemBundle with PeripheryFesvrBundle {
   override def cloneType = new MidasTopBundle(p).asInstanceOf[this.type]
 }
 
 class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle](p: Parameters, l: L, b: => B)
   extends BaseTopModule(p, l, b)
   with PeripheryBootROMModule with PeripheryCoreplexLocalInterrupterModule
-  with PeripheryMasterMemModule with PeripherySerialModule
-  with HardwiredResetVector with DirectConnection with NoDebug
+  with PeripheryMasterMemModule with PeripheryFesvrModule
+  with HardwiredResetVector with DirectConnection
 
 trait HasGenerator extends GeneratorApp {
   def getGenerator(targetNames: ParsedInputNames, params: Parameters) =
@@ -36,8 +35,8 @@ trait HasGenerator extends GeneratorApp {
       .asInstanceOf[LazyModule]).module
 
   override lazy val names: ParsedInputNames = {
-    require(args.size == 6, "Usage: sbt> run [midas | strober | replay] " +
-      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString")
+    require(args.size == 7, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString platform")
     ParsedInputNames(
       targetDir = args(1),
       topModuleProject = args(2),
@@ -120,18 +119,22 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
-  implicit val p = cde.Parameters.root((new ZynqConfig).toInstance)
+  def midasParams = cde.Parameters.root((args.last match {
+    case "zynq"     => new ZynqConfig
+    case "catapult" => new CatapultConfig
+  }).toInstance)
   // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance)
 
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      midas.MidasCompiler(targetGenerator, testDir)
+      midas.MidasCompiler(targetGenerator, testDir)(midasParams)
     case "strober" =>
       midas.MidasCompiler(targetGenerator, testDir)(
-        p alter Map(midas.EnableSnapshot -> true))
+        midasParams alter Map(midas.EnableSnapshot -> true))
     case "replay" =>
       strober.replay.Compiler(targetGenerator, testDir)
   }
   generateTestSuiteMakefrags
+  generateParameterDump
 }
