@@ -208,9 +208,10 @@ $(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/l
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 
 # Generate Bitstream
-board     ?= zc706
-board_dir := $(base_dir)/midas-$(PLATFORM)/$(board)
-bitstream := fpga-images-$(board)/boot.bin
+BOARD     ?= zc706
+board_dir := $(base_dir)/midas-$(PLATFORM)/$(BOARD)
+boot_bin := fpga-images-$(BOARD)/boot.bin
+proj_name = midas_$(BOARD)_$(CONFIG)
 
 $(board_dir)/src/verilog/$(CONFIG)/$(shim).v: $(verilog)
 	$(MAKE) -C $(board_dir) clean DESIGN=$(CONFIG)
@@ -219,13 +220,17 @@ $(board_dir)/src/verilog/$(CONFIG)/$(shim).v: $(verilog)
 
 $(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
 	$(call mkdir,$(output_dir))
-	$(MAKE) -C $(board_dir) $(bitstream) DESIGN=$(CONFIG)
-	cp $(board_dir)/$(bitstream) $@
+	$(MAKE) -C $(board_dir) $(boot_bin) DESIGN=$(CONFIG)
+	cp $(board_dir)/$(boot_bin) $@
 
-$(output_dir)/midas_wrapper.bit: $(output_dir)/boot.bin
-	cp -L $(board_dir)/fpga-images-$(board)/boot_image/midas_wrapper.bit $@
+$(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
+	$(MAKE) -C $(board_dir) bitstream DESIGN=$(CONFIG)
+	cp $(board_dir)/$(proj_name)/$(proj_name).runs/impl_1/midas_wrapper.bit $@
 
-fpga: $(output_dir)/boot.bin $(output_dir)/midas_wrapper.bit
+bitstream: $(output_dir)/midas_wrapper.bit
+fpga: $(output_dir)/boot.bin
+
+# This omits the boot.bin for use on the cluster
 endif
 
 ifeq ($(PLATFORM),catapult)

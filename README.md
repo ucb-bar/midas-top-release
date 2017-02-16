@@ -1,5 +1,5 @@
 # MidasTop
-Top level project demonstrating the use of midas rocket-chip as an example.
+An example use of midas with rocket-chip as the target design.
 
 ## <a name = "started"></a> Getting Started
 
@@ -8,7 +8,7 @@ Top level project demonstrating the use of midas rocket-chip as an example.
     $ git submodule update --init --recursive
 
 ## <a name = "compilation"></a> Compilation
-First of all, define or edit your own design and config in `src/main/scala` if necessary.
+First of all, specify your target design in `src/main/scala`, like any other RocketChip SoC project(if necessary).
 To compile rocket-chip in Midas or Strober, run:
 
     $ make compile [STROBER=1] [DESIGN=<your design>] [CONFIG=<your config>]
@@ -36,40 +36,37 @@ You can also run an individual test as follows:
     $ make <abspath to root directory>/output/<test_name>.vpd [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
  
 ## <a name = "fpga"></a> FPGA Simulation
-To synthesize an FPGA simulator, run:
+The fpga flow is largely adopted from [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git), so refer to it for more information.
 
-    $ make fpga [STROBE=1] [board=<zc706|zynq|zybo>] [DESIGN=<your design>] [CONFIG=<your config>]
+To build an FPGA simulator, run:
 
-The fpga board is by default zc706, but you can change it by passing a `board` parameter. 
-After synthesis, it generates the following files to `output/<CONFIG>`.
+    $ make fpga [STROBE=1] [BOARD=<zc706|zynq|zybo>] [DESIGN=<your design>] [CONFIG=<your config>]
+
+This will produce the following files to `output/<CONFIG>`.
 * `boot.bin`: boot image for the board. Copy this file to the SD card.
 * `midas_wrapper.bit`: bitstream to be loaded through JTAG.
+The default board is the ZC706 (using the ARM's memory system). This can be overridden by setting make variable `BOARD`.
 
-The fpga flow is adopted from [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git), so refer to it for more information.
-
-We also need to generate the simulation driver to run FPGA simulation. To compile the driver, run:
+We also need to compile the simulation driver (the master program that controls the simulator's execution). To compile the driver, run:
 
     $ make zynq [STROBER=1] [DESIGN=<your design>] [CONFIG=<your config>]
 
-Then, it gnerated the following files to `output/<CONFIG>`:
+This will produce the following files in `output/<CONFIG>`:
 * `MidasTop-zynq`: driver binary file.
-* `MidasTop.chain`: chain meta file. It is only genrated and required for strober.
-* `libfesvr.so`: frontend sever library.
+* `MidasTop.chain`: chain meta file. It is only generated when strober is to be used.
+* `libfesvr.so`: frontend server library.
 
-We need to copy `MidasTop-zynq`, `MidasTop.chain` to the same directory in the board. Also, `libfesvr.so` should be updated in `usr/local/lib` in the board.
-The instructions to copy the files to the board, refer to [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git).
+`MidasTop-zynq`, `MidasTop.chain` should be copied to the same working directory on the ARM host of the zynq host, while `libfesvr.so` must be copied to `/usr/local/lib`.
+For detailed instructions, refer to [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git).
 
-Finally, we are ready to run FGPA simulation. `MidasTop-zynq` has the same commandline interface as `fesvr-zynq`. Thus, to run any RISC-V binaries, run:
+Finally, we are ready to run a midas simulation on the FPGA. `MidasTop-zynq` has the same command line interface as `fesvr-zynq`.
 
-    $ ./MidasTop-zynq <binary file>
 
-We assume that `MidasTop-zynq` is copied to the home directory. To run `hello` in the home directory, run:
+    $ ./MidasTop-zynq pk <binary file>
 
-    $ ./MidasTop-zynq ./pk ./hello
-    
-To boot linux, first you need to get `vmlinux` from [riscv/riscv-linux](https://github.com/riscv/riscv-linux). Then, also copy it to the board, and run:
+To boot linux, you'll need a bbl instance with your desired payload. A ramdisk image with all of the relevant files and an appropriate init script.
 
-    $ ./MidasTop-zynq ./bbl ./vmlinux +disk=<disk file>
+    $ ./MidasTop-zynq <bbl-instance>
 
 ## <a name = "replay"></a> Sample Replays
 Here, we assume that we get samples either from [emulation tests](emulation) or from [FPGA simulation](fpga)
