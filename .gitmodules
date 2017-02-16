@@ -18,7 +18,7 @@
 	url = git@github.com:ucb-bar/riscv-boom.git
 [submodule "midas-zynq"]
 	path = midas-zynq
-	url = git@github.com:donggyukim/midas-zynq.git
+	url = git@github.com:ucb-bar/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr
 	url = git@github.com:firesim/riscv-fesvr.git
