@@ -3,15 +3,17 @@ package top
 
 import chisel3._
 import chisel3.util._
-import cde.Parameters
+import rocketchip._
 import uncore.tilelink._
+import uncore.tilelink2.{TLLegacy, TLHintHandler}
+import config.Parameters
 
 class FesvrBundle(implicit p: Parameters) extends TLBundle {
-  val addr = UInt(INPUT, p(junctions.PAddrBits))
-  val wdata = UInt(INPUT, tlDataBits)
-  val rdata = UInt(OUTPUT, tlDataBits)
-  val metaIn = UInt(INPUT, width=3)
-  val metaOut = UInt(OUTPUT, width=3)
+  val addr = Input(UInt(p(junctions.PAddrBits).W))
+  val wdata = Input(UInt(tlDataBits.W))
+  val rdata = Output(UInt(tlDataBits.W))
+  val metaIn = Input(UInt(3.W))
+  val metaOut = Output(UInt(3.W))
 }
 
 class FesvrModule(implicit p: Parameters) extends TLModule {
@@ -35,27 +37,22 @@ class FesvrModule(implicit p: Parameters) extends TLModule {
   io.fesvr.metaOut := Cat(io.mem.grant.bits.hasData(), io.mem.grant.valid, io.mem.acquire.ready)
 }
 
-trait PeripheryFesvr extends diplomacy.LazyModule {
-  implicit val p: Parameters
-  val pBusMasters: rocketchip.RangeManager
-  pBusMasters.add("fesvr", 1)
+trait PeripheryFesvr extends L2Crossbar {
+  val tlLegacy = diplomacy.LazyModule(
+    new TLLegacy()(p alterPartial ({ case TLId => "L1toL2" })))
+  l2.node := TLHintHandler()(tlLegacy.node)
 }
 
-trait PeripheryFesvrBundle {
-  implicit val p: Parameters
-  val fesvr = new FesvrBundle()(p alter Map(TLId -> "L1toL2"))
-}
-
-trait PeripheryFesvrModule {
+trait PeripheryFesvrBundle extends L2CrossbarBundle {
   implicit val p: Parameters
   val outer: PeripheryFesvr
-  val io: PeripheryFesvrBundle
-  val coreplexIO: coreplex.BaseCoreplexBundle
+  val fesvr = new FesvrBundle()(p alterPartial ({ case TLId => "L1toL2" }))
+}
 
-  val (master_idx, _) = outer.pBusMasters.range("fesvr")
-  val fesvr = Module(new FesvrModule()(p alter Map(TLId -> "L1toL2")))
+trait PeripheryFesvrModule extends L2CrossbarModule {
+  val outer: PeripheryFesvr
+  val io: PeripheryFesvrBundle
+  val fesvr = Module(new FesvrModule()(p alterPartial ({ case TLId => "L1toL2" })))
   io.fesvr <> fesvr.io.fesvr
-  coreplexIO.slave(master_idx) <> fesvr.io.mem
-  coreplexIO.debug.req.valid := Bool(false)
-  coreplexIO.debug.resp.ready := Bool(false)
+  outer.tlLegacy.module.io.legacy <>fesvr.io.mem
 }

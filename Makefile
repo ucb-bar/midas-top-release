@@ -34,8 +34,7 @@ SBT_FLAGS ?=
 
 ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
-submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	boom chisel firrtl midas $(MIDASTOP_ADDONS)
+submodules = . rocket-chip rocket-chip/hardfloat boom chisel firrtl midas $(MIDASTOP_ADDONS)
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 mkdir = mkdir -p $(1)
 whitespace = "$(1)"
