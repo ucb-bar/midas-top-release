@@ -106,14 +106,15 @@ class MidasCoreplexModule[+L <: MidasCoreplex, +B <: MidasCoreplexBundle[L]](_ou
 
 trait MidasPlexMaster extends TopNetwork {
   val module: MidasPlexMasterModule
-  val mem: Seq[TLInwardNode]
 
   val coreplex = LazyModule(new MidasCoreplex)
 
   coreplex.l2in :=* l2.node
   socBus.node := coreplex.mmio
   coreplex.mmioInt := intBus.intnode
-  mem foreach (_ := coreplex.mem)
+
+  require(mem.size == coreplex.mem.size)
+  (mem zip coreplex.mem) foreach { case (xbar, channel) => xbar.node :=* channel }
 }
 
 trait MidasPlexMasterBundle extends TopNetworkBundle {
