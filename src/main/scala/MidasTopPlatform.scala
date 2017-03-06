@@ -25,8 +25,7 @@ trait MidasTopPlatform extends CoreplexNetwork {
   lazy val configString = {
     val managers = l1tol2.node.edgesIn(0).manager.managers
     // Use the existing config string if the user overrode it
-    _root_.util.ConfigStringOutput.contents.getOrElse(
-      rocketchip.GenerateConfigString(p, clint, plic, managers))
+    rocketchip.GenerateConfigString(p, clint, plic, managers)
   }
 }
 

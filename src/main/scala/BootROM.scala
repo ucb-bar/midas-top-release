@@ -29,7 +29,7 @@ trait PeripheryBootROM {
     val configString = sb.toString
 
     println(s"\nBIANCOLIN'S HACK: Generated Configuration String\n${configString}")
-    _root_.util.ConfigStringOutput.contents = Some(configString)
+    _root_.util.ElaborationArtefacts.add("cfg", configString)
     configString
   }
 

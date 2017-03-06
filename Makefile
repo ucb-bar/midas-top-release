@@ -61,17 +61,6 @@ ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
 -include $(generated_dir)/$(PROJECT).d
 endif
 
-param_file = $(generated_dir)/$(PROJECT).prm
-consts_header = $(generated_dir)/$(PROJECT).h
-
-$(param_file): $(verilog)
-
-$(consts_header): $(param_file)
-	echo "#ifndef __PARAM_CONST_H__" > $@
-	echo "#define __PARAM_CONST_H__" >> $@
-	sed -E 's/\(([A-Za-z0-9_]+),([A-Za-z0-9_]+)\)/#define \1 \2L/' $< >> $@
-	echo "#endif // __PARAM_CONST_H__" >> $@
-
 timeout_cycles = 100000000
 disasm := 2>
 which_disasm := $(shell which spike-dasm 2> /dev/null)
@@ -85,14 +74,14 @@ endif
 verilator = $(generated_dir)/V$(DESIGN)
 verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 
-$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include -include $(consts_header)
+$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) verilator-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -108,11 +97,11 @@ vcs_debug = $(generated_dir)/$(DESIGN)-debug
 $(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
 $(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) vcs PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) vcs-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 

@@ -151,5 +151,4 @@ object MidasTopGenerator extends HasGenerator with HasTestSuites {
       strober.replay.Compiler(targetGenerator, testDir)
   }
   generateTestSuiteMakefrags
-  generateParameterDump
 }
