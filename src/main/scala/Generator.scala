@@ -29,7 +29,7 @@ class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
   with MidasPlexMasterBundle
 {
   override def cloneType = (new MidasTopBundle(_outer) {
-    override val mem_axi4 = outer.mem_axi4.map(_.bundleOut.cloneType).toList.headOption
+    override val mem_axi4 = outer.mem_axi4.bundleOut.cloneType
   }).asInstanceOf[this.type]
 }
 
