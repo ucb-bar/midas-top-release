@@ -89,7 +89,6 @@ trait MidasTilesModule extends MidasTopPlatformModule {
 
 class MidasCoreplex(implicit p: Parameters) extends BaseCoreplex
     with MidasTopPlatform
-    with HasL2MasterPort
     with MidasTiles {
   override lazy val module = new MidasCoreplexModule(this, () => new MidasCoreplexBundle(this))
 }
@@ -97,34 +96,32 @@ class MidasCoreplex(implicit p: Parameters) extends BaseCoreplex
 class MidasCoreplexBundle[+L <: MidasCoreplex](_outer: L)
     extends BaseCoreplexBundle(_outer)
     with MidasTopPlatformBundle
-    with HasL2MasterPortBundle
     with MidasTilesBundle
 
 class MidasCoreplexModule[+L <: MidasCoreplex, +B <: MidasCoreplexBundle[L]](_outer: L, _io: () => B)
     extends BaseCoreplexModule(_outer, _io)
     with MidasTopPlatformModule
-    with HasL2MasterPortModule
     with MidasTilesModule
 
 ///
 
-trait MidasPlexMaster extends L2Crossbar {
+trait MidasPlexMaster extends TopNetwork {
   val module: MidasPlexMasterModule
   val mem: Seq[TLInwardNode]
 
   val coreplex = LazyModule(new MidasCoreplex)
 
-  coreplex.l2in := l2.node
+  coreplex.l2in :=* l2.node
   socBus.node := coreplex.mmio
   coreplex.mmioInt := intBus.intnode
   mem foreach (_ := coreplex.mem)
 }
 
-trait MidasPlexMasterBundle extends L2CrossbarBundle {
+trait MidasPlexMasterBundle extends TopNetworkBundle {
   val outer: MidasPlexMaster
 }
 
-trait MidasPlexMasterModule extends L2CrossbarModule {
+trait MidasPlexMasterModule extends TopNetworkModule {
   val outer: MidasPlexMaster
   val io: MidasPlexMasterBundle
 }

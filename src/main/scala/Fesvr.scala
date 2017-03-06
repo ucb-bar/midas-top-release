@@ -37,19 +37,19 @@ class FesvrModule(implicit p: Parameters) extends TLModule {
   io.fesvr.metaOut := Cat(io.mem.grant.bits.hasData(), io.mem.grant.valid, io.mem.acquire.ready)
 }
 
-trait PeripheryFesvr extends L2Crossbar {
+trait PeripheryFesvr extends TopNetwork {
   val tlLegacy = diplomacy.LazyModule(
     new TLLegacy()(p alterPartial ({ case TLId => "L1toL2" })))
   l2.node := TLHintHandler()(tlLegacy.node)
 }
 
-trait PeripheryFesvrBundle extends L2CrossbarBundle {
+trait PeripheryFesvrBundle extends TopNetworkBundle {
   implicit val p: Parameters
   val outer: PeripheryFesvr
   val fesvr = new FesvrBundle()(p alterPartial ({ case TLId => "L1toL2" }))
 }
 
-trait PeripheryFesvrModule extends L2CrossbarModule {
+trait PeripheryFesvrModule extends TopNetworkModule {
   val outer: PeripheryFesvr
   val io: PeripheryFesvrBundle
   val fesvr = Module(new FesvrModule()(p alterPartial ({ case TLId => "L1toL2" })))
