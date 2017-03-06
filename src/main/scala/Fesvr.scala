@@ -9,7 +9,7 @@ import uncore.tilelink2.{TLLegacy, TLHintHandler}
 import config.Parameters
 
 class FesvrBundle(implicit p: Parameters) extends TLBundle {
-  val addr = Input(UInt(p(junctions.PAddrBits).W))
+  val addr = Input(UInt(p(rocket.PAddrBits).W))
   val wdata = Input(UInt(tlDataBits.W))
   val rdata = Output(UInt(tlDataBits.W))
   val metaIn = Input(UInt(3.W))

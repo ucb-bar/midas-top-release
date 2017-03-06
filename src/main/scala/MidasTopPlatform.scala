@@ -6,6 +6,7 @@ import diplomacy.LazyModule
 import uncore.tilelink2._
 import uncore.devices._
 import coreplex._
+import rocket._
 import rocketchip._
 import config.Parameters
 
@@ -51,15 +52,20 @@ trait MidasTopPlatformBundle extends CoreplexNetworkBundle {
 trait MidasTiles extends MidasTopPlatform {
   val module: MidasTilesModule
 
-  val midasTiles = List.tabulate(p(NTiles)) { i => LazyModule(new rocket.RocketTile(i)) }
-  val tileIntNodes = midasTiles.map { _ => IntInternalOutputNode() }
+  val midasTiles = p(RocketConfigs) map (c =>
+    LazyModule(new RocketTile(c)(p alterPartial {
+      case SharedMemoryTLEdge => l1tol2.node.edgesIn(0)
+      case PAddrBits => l1tol2.node.edgesIn(0).bundle.addressBits
+    }))
+  )
 
-  tileIntNodes.foreach { _ := plic.intnode }
-  midasTiles.foreach { r =>
-    r.slaveNode.foreach { _ := cbus.node }
-    l1tol2.node := r.cachedOut
-    l1tol2.node := r.uncachedOut
+  midasTiles foreach { r =>
+    r.masterNodes foreach (l1tol2.node := _)
+    r.slaveNode foreach (_ := cbus.node)
   }
+
+  val tileIntNodes = midasTiles map (_ => IntInternalOutputNode())
+  tileIntNodes.foreach (_ := plic.intnode)
 }
 
 trait MidasTilesBundle extends MidasTopPlatformBundle {
@@ -83,7 +89,7 @@ trait MidasTilesModule extends MidasTopPlatformModule {
 
 class MidasCoreplex(implicit p: Parameters) extends BaseCoreplex
     with MidasTopPlatform
-    with L2MasterPort
+    with HasL2MasterPort
     with MidasTiles {
   override lazy val module = new MidasCoreplexModule(this, () => new MidasCoreplexBundle(this))
 }
@@ -91,13 +97,13 @@ class MidasCoreplex(implicit p: Parameters) extends BaseCoreplex
 class MidasCoreplexBundle[+L <: MidasCoreplex](_outer: L)
     extends BaseCoreplexBundle(_outer)
     with MidasTopPlatformBundle
-    with L2MasterPortBundle
+    with HasL2MasterPortBundle
     with MidasTilesBundle
 
 class MidasCoreplexModule[+L <: MidasCoreplex, +B <: MidasCoreplexBundle[L]](_outer: L, _io: () => B)
     extends BaseCoreplexModule(_outer, _io)
     with MidasTopPlatformModule
-    with L2MasterPortModule
+    with HasL2MasterPortModule
     with MidasTilesModule
 
 ///
