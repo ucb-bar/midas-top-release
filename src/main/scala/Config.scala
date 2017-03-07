@@ -58,4 +58,5 @@ class NoBrPred extends Config((site, here, up) => {
   case boom.EnableBranchPredictor => false
 })
 */
-class RocketChip1GExtMem extends Config(new rocketchip.WithExtMemSize(0x40000000L) ++ new rocketchip.BaseConfig)
+class RocketChip1GExtMem extends Config(new rocketchip.WithExtMemSize(0x40000000L) ++ new DefaultExampleConfig)
+class RocketChip2GExtMem extends Config(new rocketchip.WithExtMemSize(0x80000000L) ++ new DefaultExampleConfig)
