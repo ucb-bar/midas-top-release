@@ -10,10 +10,20 @@ DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
 # CONFIG ?= SmallBOOMConfig
 # CONFIG ?= SimpleNicConfig
+#
+# PLATFORM_CONFIG calls out configuration decisions passed to midas to change
+# what is instantiated in the host
+ifeq ($(PLATFORM),catapult)
+	PLATFORM_CONFIG ?= CatapultConfig
+else
+	PLATFORM_CONFIG ?= ZynqConfigWithMemModel
+endif
+
 STROBER ?=
 DRIVER ?=
 SAMPLE ?=
-ARGS ?= +dramsim
+# Additional argument passed to VCS/verilator simulations
+SW_SIM_ARGS ?= +dramsim
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
@@ -49,7 +59,7 @@ shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) \
-	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PLATFORM)"
+	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PROJECT) $(PLATFORM_CONFIG)"
 verilog: $(verilog)
 
 header = $(generated_dir)/$(DESIGN)-const.h
@@ -113,17 +123,17 @@ vcs-debug: $(vcs_debug)
 ######################
 $(output_dir)/%.run: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	2> /dev/null 2> $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 	cd $(dir $($(EMUL)_debug)) && \
-	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 ######################

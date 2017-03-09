@@ -50,8 +50,8 @@ trait HasGenerator extends GeneratorApp {
       .asInstanceOf[LazyModule]).module
 
   override lazy val names: ParsedInputNames = {
-    require(args.size == 7, "Usage: sbt> run [midas | strober | replay] " +
-      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString platform")
+    require(args.size == 8, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString HostConfig")
     ParsedInputNames(
       targetDir = args(1),
       topModuleProject = args(2),
@@ -60,8 +60,20 @@ trait HasGenerator extends GeneratorApp {
       configs = args(5))
   }
 
+  // Unfortunately ParsedInputNames is the interface provided by RC's convenient 
+  // parameter elaboration utilities
+  lazy val hostNames: ParsedInputNames = ParsedInputNames(
+      targetDir = args(1),
+      topModuleProject = "Unused",
+      topModuleClass = "Unused",
+      configProject = args(6),
+      configs = args(7))
+
   lazy val targetParams = getParameters(names)
   lazy val targetGenerator = getGenerator(names, targetParams)
+  // While this is called the HostConfig, it does also include configurations
+  // that control what models are instantiated
+  lazy val hostParams = getParameters(hostNames)
 }
 
 trait HasTestSuites {
@@ -134,19 +146,14 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
-  def midasParams = Parameters.root((args.last match {
-    case "zynq"     => new ZynqConfig
-    case "catapult" => new CatapultConfig
-  }).toInstance)
-  // implicit val p = Parameters.root((new ZynqConfigWithMemModel).toInstance)
 
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      midas.MidasCompiler(targetGenerator, testDir)(midasParams)
+      midas.MidasCompiler(targetGenerator, testDir)(hostParams)
     case "strober" =>
       midas.MidasCompiler(targetGenerator, testDir)(
-        midasParams alterPartial ({ case midas.EnableSnapshot => true }))
+        hostParams alterPartial ({ case midas.EnableSnapshot => true }))
     case "replay" =>
       strober.replay.Compiler(targetGenerator, testDir)
   }
