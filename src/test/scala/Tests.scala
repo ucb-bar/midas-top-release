@@ -4,7 +4,7 @@ package top
 import rocketchip._
 import TestGeneration._
 import diplomacy.LazyModule
-import cde.{Config, Parameters}
+import config.{Config, Parameters}
 import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.sys.process.stringSeqToProcess
 import scala.reflect.ClassTag
@@ -20,11 +20,11 @@ abstract class MidasTopTestSuite(
   import scala.concurrent.duration._
   import ExecutionContext.Implicits.global
 
-  implicit val p = Parameters.root((platform match {
+  val p = Parameters.root((platform match {
     case midas.Zynq if memmodel => new ZynqConfigWithMemModel
     case midas.Zynq => new midas.ZynqConfig
     case midas.Catapult => new midas.CatapultConfig
-  }).toInstance) alter Map(midas.EnableSnapshot -> snapshot)
+  }).toInstance) alterPartial Map(midas.EnableSnapshot -> snapshot)
   lazy val param = Parameters.root(config.toInstance)
   lazy val platformName = platform.toString.toLowerCase
   lazy val configName = config.getClass.getSimpleName
@@ -33,9 +33,9 @@ abstract class MidasTopTestSuite(
   val genDir = new File(new File("generated-src", platformName), configName) ; genDir.mkdirs
   val outDir = new File(new File("output", platformName), configName) ; outDir.mkdirs
 
-  lazy val design = LazyModule(new MidasTop(param)).module
+  lazy val design = LazyModule(new MidasTop()(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
-  midas.MidasCompiler(chirrtl, design.io, genDir)
+  midas.MidasCompiler(chirrtl, design.io, genDir)(p)
   if (p(midas.EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
   addTestSuites(param)
 
