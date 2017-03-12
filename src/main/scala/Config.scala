@@ -12,6 +12,7 @@ import uncore.devices.NTiles
 import uncore.util.CacheBlockBytes
 
 class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
+class ZynqConfig extends Config(new midas.ZynqConfig)
 
 class WithLBPipe extends Config((site, here ,up) => {
   case MemModelKey => Some((p: Parameters) => new MidasMemModel(

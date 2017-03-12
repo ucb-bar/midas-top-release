@@ -23,7 +23,8 @@ STROBER ?=
 DRIVER ?=
 SAMPLE ?=
 # Additional argument passed to VCS/verilator simulations
-SW_SIM_ARGS ?= +dramsim
+#SW_SIM_ARGS ?= +dramsim +mm_LATENCY=10
+SW_SIM_ARGS ?= +dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc

@@ -11,32 +11,29 @@ import scala.reflect.ClassTag
 import java.io.{File, FileWriter}
 
 abstract class MidasTopTestSuite(
-    platform: midas.PlatformType,
+    platformConfig: Config,
     config: Config,
     snapshot: Boolean = false,
-    memmodel: Boolean = false,
-    latency: Int = 8,
-    N: Int = 10) extends org.scalatest.FlatSpec with HasTestSuites {
+    simulationArgs: String,
+    N: Int = 5) extends org.scalatest.FlatSpec with HasTestSuites {
   import scala.concurrent.duration._
   import ExecutionContext.Implicits.global
 
-  val p = Parameters.root((platform match {
-    case midas.Zynq if memmodel => new ZynqConfigWithMemModel
-    case midas.Zynq => new midas.ZynqConfig
-    case midas.Catapult => new midas.CatapultConfig
-  }).toInstance) alterPartial Map(midas.EnableSnapshot -> snapshot)
+  val platformParams = Parameters.root(platformConfig.toInstance) alterPartial Map(midas.EnableSnapshot -> snapshot)
   lazy val param = Parameters.root(config.toInstance)
-  lazy val platformName = platform.toString.toLowerCase
+  lazy val platformName = platformParams(midas.Platform).toString.toLowerCase
   lazy val configName = config.getClass.getSimpleName
-  lazy val makeArgs = Seq(s"PLATFORM=$platformName", "DESIGN=MidasTop", s"CONFIG=$configName")
+  lazy val platformConfigName = platformConfig.getClass.getSimpleName
+  lazy val makeArgs = Seq(s"PLATFORM=$platformName", "DESIGN=MidasTop",
+    s"CONFIG=$configName", s"PLATFORM_CONFIG=$platformConfigName", s"SW_SIM_ARGS=${simulationArgs}")
 
   val genDir = new File(new File("generated-src", platformName), configName) ; genDir.mkdirs
   val outDir = new File(new File("output", platformName), configName) ; outDir.mkdirs
 
   lazy val design = LazyModule(new MidasTop()(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
-  midas.MidasCompiler(chirrtl, design.io, genDir)(p)
-  if (p(midas.EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
+  midas.MidasCompiler(chirrtl, design.io, genDir)(platformParams)
+  if (platformParams(midas.EnableSnapshot)) strober.replay.Compiler(chirrtl, design.io, genDir)
   addTestSuites(param)
 
   val makefrag = new FileWriter(new File(genDir, "midas.top.d"))
@@ -71,7 +68,7 @@ abstract class MidasTopTestSuite(
     results.flatten foreach { case (name, exitcode) =>
       it should s"pass $name" in { assert(exitcode == 0) }
     }
-    if (p(midas.EnableSnapshot)) {
+    if (platformParams(midas.EnableSnapshot)) {
       assert((Seq("make", "vcs-replay") ++ makeArgs).! == 0) // compile vcs
       val replays = suite.names.toSeq sliding (N, N) map { t =>
         val subresults = t map (name =>
@@ -85,19 +82,22 @@ abstract class MidasTopTestSuite(
   }
 }
 
-abstract class DefaultExampleTests(platform: midas.PlatformType)
-    extends MidasTopTestSuite(platform, new DefaultExampleConfig) {
+abstract class DefaultExampleTests(platformConfig: Config, simulationArgs: String)
+    extends MidasTopTestSuite(platformConfig, new DefaultExampleConfig,
+      simulationArgs = simulationArgs) {
   bmarkSuites.values foreach runSuite("verilator")
   bmarkSuites.values foreach runSuite("vcs", true)
   regressionSuites.values foreach runSuite("verilator")
   regressionSuites.values foreach runSuite("vcs", true)
 }
-abstract class SmallBOOMTests(platform: midas.PlatformType)
-    extends MidasTopTestSuite(platform, new SmallBOOMConfig) {
-  bmarkSuites.values foreach runSuite("verilator")
-  bmarkSuites.values foreach runSuite("vcs", true)
-}
+//abstract class SmallBOOMTests(platformConfig: Config)
+//    extends MidasTopTestSuite(platformConfig, new SmallBOOMConfig) {
+//  bmarkSuites.values foreach runSuite("verilator")
+//  bmarkSuites.values foreach runSuite("vcs", true)
+//}
 
-class DefaultExampleZynqTests extends DefaultExampleTests(midas.Zynq)
-class DefaultExampleCatapultTests extends DefaultExampleTests(midas.Catapult)
-class SmallBOOMZynqTests extends SmallBOOMTests(midas.Zynq)
+class DefaultMMMZynqTests extends DefaultExampleTests(new ZynqConfigWithMemModel, 
+    "+dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8")
+class DefaultExampleZynqTests extends DefaultExampleTests(new midas.ZynqConfig, "+dramsim +mm_LATENCY=16")
+//class DefaultExampleCatapultTests extends DefaultExampleTests(new midas.CatapultConfig)
+//class SmallBOOMZynqTests extends SmallBOOMTests(new midas.ZynqConfig)
