@@ -223,6 +223,7 @@ $(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
 	cp $(board_dir)/$(boot_bin) $@
 
 $(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
+	$(call mkdir,$(output_dir))
 	$(MAKE) -C $(board_dir) bitstream DESIGN=$(CONFIG)
 	cp $(board_dir)/$(proj_name)/$(proj_name).runs/impl_1/midas_wrapper.bit $@
 
