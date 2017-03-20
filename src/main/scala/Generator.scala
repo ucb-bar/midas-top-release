@@ -2,7 +2,6 @@ package midas
 package top
 
 import rocketchip._
-import rocket.{XLen, UseVM, UseAtomics, UseCompressed, FPUKey}
 import diplomacy.LazyModule
 import config.Parameters
 import util.{GeneratorApp, ParsedInputNames}
@@ -114,10 +113,11 @@ trait HasTestSuites {
       "rv32ui-p-sll")
 
   def addTestSuites(params: Parameters) {
-    val xlen = params(XLen)
-    val vm = params(UseVM)
+    val coreParams = params(coreplex.RocketTilesKey).head.core
+    val xlen = params(tile.XLen)
+    val vm = coreParams.useVM
     val env = if (vm) List("p","v") else List("p")
-    params(FPUKey) foreach { case cfg =>
+    coreParams.fpu foreach { case cfg =>
       if (xlen == 32) {
         TestGeneration.addSuites(env.map(rv32ufNoDiv))
       } else {
@@ -130,8 +130,8 @@ trait HasTestSuites {
         }
       }
     }
-    if (params(UseAtomics))    TestGeneration.addSuites(env.map(if (xlen == 64) rv64ua else rv32ua))
-    if (params(UseCompressed)) TestGeneration.addSuites(env.map(if (xlen == 64) rv64uc else rv32uc))
+    if (coreParams.useAtomics)    TestGeneration.addSuites(env.map(if (xlen == 64) rv64ua else rv32ua))
+    if (coreParams.useCompressed) TestGeneration.addSuites(env.map(if (xlen == 64) rv64uc else rv32uc))
     val (rvi, rvu) =
       if (xlen == 64) ((if (vm) rv64i else rv64pi), rv64u)
       else            ((if (vm) rv32i else rv32pi), rv32u)

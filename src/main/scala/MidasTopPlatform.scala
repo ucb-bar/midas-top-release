@@ -6,6 +6,7 @@ import diplomacy.LazyModule
 import uncore.tilelink2._
 import uncore.devices._
 import coreplex._
+import tile._
 import rocket._
 import rocketchip._
 import config.Parameters
@@ -43,7 +44,7 @@ trait MidasTopPlatformBundle extends CoreplexNetworkBundle {
   val outer: MidasTopPlatform
 
   val rtcToggle = Bool(INPUT)
-  val resetVector = UInt(INPUT, p(rocket.XLen))
+  val resetVector = UInt(INPUT, p(tile.XLen))
 }
 
 ///
@@ -51,20 +52,34 @@ trait MidasTopPlatformBundle extends CoreplexNetworkBundle {
 trait MidasTiles extends MidasTopPlatform {
   val module: MidasTilesModule
 
-  val midasTiles = p(RocketConfigs) map (c =>
-    LazyModule(new RocketTile(c)(p alterPartial {
+  private val configs = p(RocketTilesKey)
+  private val tileIntNodes = configs map (_ => IntInternalOutputNode())
+  tileIntNodes foreach (_ := plic.intnode)
+
+  private def wireInterrupts(x: TileInterrupts, i: Int) {
+    x := clint.module.io.tiles(i)
+    x.meip := tileIntNodes(i).bundleOut(0)(0)
+    x.seip foreach (_ := tileIntNodes(i).bundleOut(0)(1))
+  }
+
+  val tileWires = configs.zipWithIndex map { case (key, i) =>
+    // Synchronous Crossing
+    val tile = LazyModule(new RocketTile(key)(p alterPartial {
+      case TileKey => key
+      case BuildRoCC => key.rocc
       case SharedMemoryTLEdge => l1tol2.node.edgesIn(0)
       case PAddrBits => l1tol2.node.edgesIn(0).bundle.addressBits
     }))
-  )
-
-  midasTiles foreach { r =>
-    r.masterNodes foreach (l1tol2.node := _)
-    r.slaveNode foreach (_ := cbus.node)
+    val buffer = LazyModule(new TLBuffer)
+    buffer.node :=* tile.masterNode
+    l1tol2.node :=* buffer.node
+    tile.slaveNode :*= cbus.node
+    (io: MidasTilesBundle) => {
+      tile.module.io.hartid := UInt(i)
+      tile.module.io.resetVector := io.resetVector
+      wireInterrupts(tile.module.io.interrupts, i)
+    }
   }
-
-  val tileIntNodes = midasTiles map (_ => IntInternalOutputNode())
-  tileIntNodes.foreach (_ := plic.intnode)
 }
 
 trait MidasTilesBundle extends MidasTopPlatformBundle {
@@ -74,14 +89,7 @@ trait MidasTilesBundle extends MidasTopPlatformBundle {
 trait MidasTilesModule extends MidasTopPlatformModule {
   val outer: MidasTiles
   val io: MidasTilesBundle
-
-  outer.midasTiles.map(_.module).zipWithIndex.foreach { case (tile, i) =>
-    tile.io.hartid := UInt(i)
-    tile.io.resetVector := io.resetVector
-    tile.io.interrupts := outer.clint.module.io.tiles(i)
-    tile.io.interrupts.meip := outer.tileIntNodes(i).bundleOut(0)(0)
-    tile.io.interrupts.seip.foreach(_ := outer.tileIntNodes(i).bundleOut(0)(1))
-  }
+  outer.tileWires foreach (_(io))
 }
 
 ///

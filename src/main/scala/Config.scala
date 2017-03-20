@@ -1,15 +1,16 @@
 package midas
 package top
 
-import config.{Parameters, Config}
 import dram_midas._
+
+import config.{Parameters, Config}
+import tile._
 import rocket._
 import coreplex._
 import uncore.tilelink._
 import uncore.coherence._
 import uncore.agents._
 import uncore.devices.NTiles
-import uncore.util.CacheBlockBytes
 
 class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
 class ZynqConfig extends Config(new midas.ZynqConfig)
@@ -24,22 +25,23 @@ class MidasTopConfig extends Config((site, here, up) => {
   case AmoAluOperandBits => site(XLen)
   case NAcquireTransactors => 7
   case L2StoreDataQueueDepth => 1
-  case L2DirectoryRepresentation => new NullRepresentation(site(NTiles))
+  case BuildRoCC => Nil
 
   case CacheBlockOffsetBits => chisel3.util.log2Up(site(CacheBlockBytes))
-
+  case RocketTilesKey => up(RocketTilesKey) map (
+    tile => tile.copy(core = tile.core.copy(useDebug = false)))
   case TLKey("L1toL2") =>
-    val useMEI = site(NTiles) <= 1
+    val nTiles = site(NTiles)
+    val useMEI = nTiles <= 1
+    val dir = new NullRepresentation(nTiles)
     TileLinkParameters(
-      coherencePolicy = (
-        if (useMEI) new MEICoherence(site(L2DirectoryRepresentation))
-        else new MESICoherence(site(L2DirectoryRepresentation))),
+      coherencePolicy = if (useMEI) new MEICoherence(dir) else new MESICoherence(dir),
       nManagers = site(BankedL2Config).nBanks + 1 /* MMIO */,
       nCachingClients = 1,
       nCachelessClients = 1,
       maxClientXacts = List(
         // L1 cache
-        site(DCacheKey).nMSHRs + 1 /* IOMSHR */,
+        site(RocketTilesKey).head.dcache.get.nMSHRs + 1 /* IOMSHR */,
         // RoCC
         if (site(BuildRoCC).isEmpty) 1 else site(RoccMaxTaggedMemXacts)).max,
       maxClientsPerPort = if (site(BuildRoCC).isEmpty) 1 else 2,
@@ -47,11 +49,9 @@ class MidasTopConfig extends Config((site, here, up) => {
       dataBeats = (8 * site(CacheBlockBytes)) / site(XLen),
       dataBits = (8 * site(CacheBlockBytes))
     )
-
-  case rocket.UseDebug => false
 })
 
-class DefaultExampleConfig extends Config(new MidasTopConfig ++ new rocketchip.BaseConfig)
+class DefaultExampleConfig extends Config(new MidasTopConfig ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
 /*
 class SmallBOOMConfig extends Config(new NoBrPred ++ new MidasTopConfig ++ new boom.SmallBOOMConfig)
 
