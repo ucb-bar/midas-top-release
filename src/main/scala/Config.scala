@@ -6,11 +6,13 @@ import dram_midas._
 import config.{Parameters, Config}
 import tile._
 import rocket._
+import rocketchip._
 import coreplex._
 import uncore.tilelink._
 import uncore.coherence._
 import uncore.agents._
 import uncore.devices.NTiles
+import boom._
 
 class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
 class ZynqConfig extends Config(new midas.ZynqConfig)
@@ -51,13 +53,28 @@ class MidasTopConfig extends Config((site, here, up) => {
     )
 })
 
-class DefaultExampleConfig extends Config(new MidasTopConfig ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
-/*
-class SmallBOOMConfig extends Config(new NoBrPred ++ new MidasTopConfig ++ new boom.SmallBOOMConfig)
 
-class NoBrPred extends Config((site, here, up) => {
-  case boom.EnableBranchPredictor => false
+class WithSmallBOOM extends Config((site, here, up) => {
+  case RocketTilesKey => up(RocketTilesKey) map (
+    tile => tile.copy(core = tile.core.copy(fWidth = 1)))
+  case BoomKey => BoomCoreParams(
+    issueWidth = 1,
+    numRobEntries = 24,
+    numIssueSlotEntries = 10,
+    numPhysRegisters = 100,
+    numLsuEntries = 4,
+    maxBrCount = 4,
+    enableBranchPredictor = false
+  )
 })
-*/
-class RocketChip1GExtMem extends Config(new rocketchip.WithExtMemSize(0x40000000L) ++ new DefaultExampleConfig)
-class RocketChip2GExtMem extends Config(new rocketchip.WithExtMemSize(0x80000000L) ++ new DefaultExampleConfig)
+
+class DefaultExampleConfig extends Config(new MidasTopConfig ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
+class DefaultBOOMConfig extends Config(new MidasTopConfig ++ new BOOMConfig)
+class SmallBOOMConfig extends Config(new MidasTopConfig ++ new WithSmallBOOM ++ new BOOMConfig)
+
+class RocketChip1GExtMem extends Config(new WithExtMemSize(0x40000000L) ++ new DefaultExampleConfig)
+class RocketChip2GExtMem extends Config(new WithExtMemSize(0x80000000L) ++ new DefaultExampleConfig)
+class SmallBOOM1GExtMem extends Config(new WithExtMemSize(0x40000000L) ++ new SmallBOOMConfig)
+class SmallBOOM2GExtMem extends Config(new WithExtMemSize(0x80000000L) ++ new SmallBOOMConfig)
+class DefaultBOOM1GExtMem extends Config(new WithExtMemSize(0x40000000L) ++ new DefaultBOOMConfig)
+class DefaultBOOM2GExtMem extends Config(new WithExtMemSize(0x80000000L) ++ new DefaultBOOMConfig)

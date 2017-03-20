@@ -8,6 +8,7 @@ PROJECT ?= midas.top
 # PROJECT ?= simplenic
 DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
+# CONFIG ?= DefaultBOOMConfig
 # CONFIG ?= SmallBOOMConfig
 # CONFIG ?= SimpleNicConfig
 #
@@ -16,15 +17,16 @@ CONFIG ?= DefaultExampleConfig
 ifeq ($(PLATFORM),catapult)
 	PLATFORM_CONFIG ?= CatapultConfig
 else
-	PLATFORM_CONFIG ?= ZynqConfigWithMemModel
+	# PLATFORM_CONFIG ?= ZynqConfigWithMemModel
+	PLATFORM_CONFIG ?= ZynqConfig
 endif
 
 STROBER ?=
 DRIVER ?=
 SAMPLE ?=
 # Additional argument passed to VCS/verilator simulations
-#SW_SIM_ARGS ?= +dramsim +mm_LATENCY=10
-SW_SIM_ARGS ?= +dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
+SW_SIM_ARGS ?= +mm_LATENCY=10
+#SW_SIM_ARGS ?= +dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
@@ -41,7 +43,7 @@ midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
 	$(wildcard $(simif_dir)/endpoints/*.cc)
 
 SBT ?= sbt
-SBT_FLAGS ?=
+SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
