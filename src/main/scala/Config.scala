@@ -53,24 +53,9 @@ class MidasTopConfig extends Config((site, here, up) => {
     )
 })
 
-
-class WithSmallBOOM extends Config((site, here, up) => {
-  case RocketTilesKey => up(RocketTilesKey) map (
-    tile => tile.copy(core = tile.core.copy(fWidth = 1)))
-  case BoomKey => BoomCoreParams(
-    issueWidth = 1,
-    numRobEntries = 24,
-    numIssueSlotEntries = 10,
-    numPhysRegisters = 100,
-    numLsuEntries = 4,
-    maxBrCount = 4,
-    enableBranchPredictor = false
-  )
-})
-
 class DefaultExampleConfig extends Config(new MidasTopConfig ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
-class DefaultBOOMConfig extends Config(new MidasTopConfig ++ new BOOMConfig)
-class SmallBOOMConfig extends Config(new MidasTopConfig ++ new WithSmallBOOM ++ new BOOMConfig)
+class DefaultBOOMConfig extends Config(new MidasTopConfig ++ new boom.BOOMConfig)
+class SmallBOOMConfig extends Config(new MidasTopConfig ++ new boom.SmallBoomConfig)
 
 class RocketChip1GExtMem extends Config(new WithExtMemSize(0x40000000L) ++ new DefaultExampleConfig)
 class RocketChip2GExtMem extends Config(new WithExtMemSize(0x80000000L) ++ new DefaultExampleConfig)
