@@ -5,12 +5,13 @@ PLATFORM ?= zynq
 #PLATFORM ?= catapult
 EMUL ?= verilator
 PROJECT ?= midas.top
-# PROJECT ?= simplenic
+CONFIG_PROJECT ?= midas.top
+# CONFIG_PROJECT ?= simplenic
 DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
 # CONFIG ?= DefaultBOOMConfig
 # CONFIG ?= SmallBOOMConfig
-# CONFIG ?= SimpleNicConfig
+# CONFIG ?= SimpleNicMidasConfig
 #
 # PLATFORM_CONFIG calls out configuration decisions passed to midas to change
 # what is instantiated in the host
@@ -62,7 +63,7 @@ shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) \
-	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PROJECT) $(PLATFORM_CONFIG)"
+	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG) $(PROJECT) $(PLATFORM_CONFIG)"
 verilog: $(verilog)
 
 header = $(generated_dir)/$(DESIGN)-const.h
@@ -144,7 +145,7 @@ $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 ######################
 
 $(generated_dir)/$(DESIGN).v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG)"
 
 compile-replay: $(generated_dir)/$(DESIGN).v
 

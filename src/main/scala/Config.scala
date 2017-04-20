@@ -16,6 +16,7 @@ import boom._
 
 class ZynqConfigWithMemModel extends Config(new WithLBPipe ++ new ZynqConfig)
 class ZynqConfig extends Config(new midas.ZynqConfig)
+class CatapultConfig extends Config(new midas.CatapultConfig)
 
 class WithLBPipe extends Config((site, here ,up) => {
   case MemModelKey => Some((p: Parameters) => new MidasMemModel(
