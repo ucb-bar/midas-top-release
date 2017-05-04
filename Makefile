@@ -5,15 +5,29 @@ PLATFORM ?= zynq
 #PLATFORM ?= catapult
 EMUL ?= verilator
 PROJECT ?= midas.top
-# PROJECT ?= simplenic
+CONFIG_PROJECT ?= midas.top
+# CONFIG_PROJECT ?= simplenic
 DESIGN ?= MidasTop
 CONFIG ?= DefaultExampleConfig
+# CONFIG ?= DefaultBOOMConfig
 # CONFIG ?= SmallBOOMConfig
-# CONFIG ?= SimpleNicConfig
+# CONFIG ?= SimpleNicMidasConfig
+#
+# PLATFORM_CONFIG calls out configuration decisions passed to midas to change
+# what is instantiated in the host
+ifeq ($(PLATFORM),catapult)
+	PLATFORM_CONFIG ?= CatapultConfig
+else
+	# PLATFORM_CONFIG ?= ZynqConfigWithMemModel
+	PLATFORM_CONFIG ?= ZynqConfig
+endif
+
 STROBER ?=
 DRIVER ?=
 SAMPLE ?=
-ARGS ?= +dramsim
+# Additional argument passed to VCS/verilator simulations
+SW_SIM_ARGS ?= +mm_LATENCY=10
+#SW_SIM_ARGS ?= +dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
@@ -30,12 +44,11 @@ midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
 	$(wildcard $(simif_dir)/endpoints/*.cc)
 
 SBT ?= sbt
-SBT_FLAGS ?=
+SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 ifneq ($(SHELL),sh.exe)
 src_path = src/main/scala
-submodules = . rocket-chip rocket-chip/hardfloat rocket-chip/context-dependent-environments \
-	boom chisel firrtl midas $(MIDASTOP_ADDONS)
+submodules = . rocket-chip rocket-chip/hardfloat boom chisel firrtl midas $(MIDASTOP_ADDONS)
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 mkdir = mkdir -p $(1)
 whitespace = "$(1)"
@@ -50,7 +63,7 @@ shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) \
-	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG) $(PLATFORM)"
+	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG) $(PROJECT) $(PLATFORM_CONFIG)"
 verilog: $(verilog)
 
 header = $(generated_dir)/$(DESIGN)-const.h
@@ -61,17 +74,6 @@ compile: $(verilog)
 ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
 -include $(generated_dir)/$(PROJECT).d
 endif
-
-param_file = $(generated_dir)/$(PROJECT).prm
-consts_header = $(generated_dir)/$(PROJECT).h
-
-$(param_file): $(verilog)
-
-$(consts_header): $(param_file)
-	echo "#ifndef __PARAM_CONST_H__" > $@
-	echo "#define __PARAM_CONST_H__" >> $@
-	sed -E 's/\(([A-Za-z0-9_]+),([A-Za-z0-9_]+)\)/#define \1 \2L/' $< >> $@
-	echo "#endif // __PARAM_CONST_H__" >> $@
 
 timeout_cycles = 100000000
 disasm := 2>
@@ -86,14 +88,14 @@ endif
 verilator = $(generated_dir)/V$(DESIGN)
 verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 
-$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include -include $(consts_header)
+$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(verilator): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(verilator_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) verilator-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -109,11 +111,11 @@ vcs_debug = $(generated_dir)/$(DESIGN)-debug
 $(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
 $(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(vcs): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) vcs PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
-$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(consts_header)
+$(vcs_debug): $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
 	$(MAKE) -C $(simif_dir) vcs-debug PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -125,17 +127,17 @@ vcs-debug: $(vcs_debug)
 ######################
 $(output_dir)/%.run: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	2> /dev/null 2> $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.out: $(output_dir)/% $(EMUL)
 	cd $(dir $($(EMUL))) && \
-	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL))) $< +sample=$<.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	$(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
 
 $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 	cd $(dir $($(EMUL)_debug)) && \
-	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(ARGS) \
+	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
 ######################
@@ -143,7 +145,7 @@ $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 ######################
 
 $(generated_dir)/$(DESIGN).v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(PROJECT) $(DESIGN) $(PROJECT) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG)"
 
 compile-replay: $(generated_dir)/$(DESIGN).v
 
@@ -224,6 +226,7 @@ $(output_dir)/boot.bin: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
 	cp $(board_dir)/$(boot_bin) $@
 
 $(output_dir)/midas_wrapper.bit: $(board_dir)/src/verilog/$(CONFIG)/$(shim).v
+	$(call mkdir,$(output_dir))
 	$(MAKE) -C $(board_dir) bitstream DESIGN=$(CONFIG)
 	cp $(board_dir)/$(proj_name)/$(proj_name).runs/impl_1/midas_wrapper.bit $@
 

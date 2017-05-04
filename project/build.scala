@@ -36,9 +36,8 @@ object MidasBuild extends Build {
   // rocket has a ton of useful library components (notably junctions), and
   // will need to be a part of any midas project, regardless of whether or not
   // it is the target design
-  lazy val cde        = project in file("rocket-chip/context-dependent-environments")
   lazy val hardfloat  = project in file("rocket-chip/hardfloat") dependsOn chisel
-  lazy val rocket     = project in file("rocket-chip") dependsOn (cde, hardfloat)
+  lazy val rocket     = project in file("rocket-chip") dependsOn hardfloat
   lazy val boom       = project dependsOn rocket
   lazy val midas      = project dependsOn (rocket, firrtl)
   lazy val midasmem   = project in file("midas-memory-model") dependsOn midas

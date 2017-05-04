@@ -1,42 +1,56 @@
 package midas
 package top
 
-import cde._
 import rocketchip._
-import rocket.{XLen, UseVM, UseAtomics, UseCompressed, FPUKey}
 import diplomacy.LazyModule
+import config.Parameters
 import util.{GeneratorApp, ParsedInputNames}
 import DefaultTestSuites._
 import java.io.File
 
-class MidasTop(q: Parameters) extends BaseTop(q)
-    with PeripheryBootROM with PeripheryCoreplexLocalInterrupter
-    with PeripheryFesvr with PeripheryMasterMem {
-  override lazy val module = new MidasTopModule(p, this, new MidasTopBundle(p))
+class MidasTop(implicit p: Parameters) extends BaseTop
+  with PeripheryBootROM
+  with PeripheryFesvr
+  with PeripheryMasterAXI4Mem
+  with PeripheryCounter
+  with HardwiredResetVector
+  with MidasPlexMaster
+{
+  override lazy val module = new MidasTopModule(this, () => new MidasTopBundle(this))
 }
 
-class MidasTopBundle(p: Parameters) extends BaseTopBundle(p)
-    with PeripheryBootROMBundle with PeripheryCoreplexLocalInterrupterBundle
-    with PeripheryMasterMemBundle with PeripheryFesvrBundle {
-  override def cloneType = new MidasTopBundle(p).asInstanceOf[this.type]
+class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
+  with PeripheryBootROMBundle
+  with PeripheryFesvrBundle
+  with PeripheryMasterAXI4MemBundle
+  with PeripheryCounterBundle
+  with HardwiredResetVectorBundle
+  with MidasPlexMasterBundle
+{
+  override def cloneType = (new MidasTopBundle(_outer) {
+    override val mem_axi4 = outer.mem_axi4.bundleOut.cloneType
+  }).asInstanceOf[this.type]
 }
 
-class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle](p: Parameters, l: L, b: => B)
-  extends BaseTopModule(p, l, b)
-  with PeripheryBootROMModule with PeripheryCoreplexLocalInterrupterModule
-  with PeripheryMasterMemModule with PeripheryFesvrModule
-  with HardwiredResetVector with DirectConnection
+class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle[L]](_outer: L, _io: () => B)
+  extends BaseTopModule(_outer, _io)
+  with PeripheryBootROMModule
+  with PeripheryFesvrModule
+  with PeripheryMasterAXI4MemModule
+  with PeripheryCounterModule
+  with HardwiredResetVectorModule
+  with MidasPlexMasterModule
 
 trait HasGenerator extends GeneratorApp {
   def getGenerator(targetNames: ParsedInputNames, params: Parameters) =
     LazyModule(Class.forName(targetNames.fullTopModuleClass)
-      .getConstructor(classOf[cde.Parameters])
+      .getConstructor(classOf[Parameters])
       .newInstance(params)
       .asInstanceOf[LazyModule]).module
 
   override lazy val names: ParsedInputNames = {
-    require(args.size == 7, "Usage: sbt> run [midas | strober | replay] " +
-      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString platform")
+    require(args.size == 8, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString HostConfig")
     ParsedInputNames(
       targetDir = args(1),
       topModuleProject = args(2),
@@ -45,8 +59,20 @@ trait HasGenerator extends GeneratorApp {
       configs = args(5))
   }
 
+  // Unfortunately ParsedInputNames is the interface provided by RC's convenient 
+  // parameter elaboration utilities
+  lazy val hostNames: ParsedInputNames = ParsedInputNames(
+      targetDir = args(1),
+      topModuleProject = "Unused",
+      topModuleClass = "Unused",
+      configProject = args(6),
+      configs = args(7))
+
   lazy val targetParams = getParameters(names)
   lazy val targetGenerator = getGenerator(names, targetParams)
+  // While this is called the HostConfig, it does also include configurations
+  // that control what models are instantiated
+  lazy val hostParams = getParameters(hostNames)
 }
 
 trait HasTestSuites {
@@ -87,10 +113,11 @@ trait HasTestSuites {
       "rv32ui-p-sll")
 
   def addTestSuites(params: Parameters) {
-    val xlen = params(XLen)
-    val vm = params(UseVM)
+    val coreParams = params(coreplex.RocketTilesKey).head.core
+    val xlen = params(tile.XLen)
+    val vm = coreParams.useVM
     val env = if (vm) List("p","v") else List("p")
-    params(FPUKey) foreach { case cfg =>
+    coreParams.fpu foreach { case cfg =>
       if (xlen == 32) {
         TestGeneration.addSuites(env.map(rv32ufNoDiv))
       } else {
@@ -103,8 +130,8 @@ trait HasTestSuites {
         }
       }
     }
-    if (params(UseAtomics))    TestGeneration.addSuites(env.map(if (xlen == 64) rv64ua else rv32ua))
-    if (params(UseCompressed)) TestGeneration.addSuites(env.map(if (xlen == 64) rv64uc else rv32uc))
+    if (coreParams.useAtomics)    TestGeneration.addSuites(env.map(if (xlen == 64) rv64ua else rv32ua))
+    if (coreParams.useCompressed) TestGeneration.addSuites(env.map(if (xlen == 64) rv64uc else rv32uc))
     val (rvi, rvu) =
       if (xlen == 64) ((if (vm) rv64i else rv64pi), rv64u)
       else            ((if (vm) rv32i else rv32pi), rv32u)
@@ -119,22 +146,16 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
-  def midasParams = cde.Parameters.root((args.last match {
-    case "zynq"     => new ZynqConfig
-    case "catapult" => new CatapultConfig
-  }).toInstance)
-  // implicit val p = cde.Parameters.root((new ZynqConfigWithMemModel).toInstance)
 
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      midas.MidasCompiler(targetGenerator, testDir)(midasParams)
+      midas.MidasCompiler(targetGenerator, testDir)(hostParams)
     case "strober" =>
       midas.MidasCompiler(targetGenerator, testDir)(
-        midasParams alter Map(midas.EnableSnapshot -> true))
+        hostParams alterPartial ({ case midas.EnableSnapshot => true }))
     case "replay" =>
       strober.replay.Compiler(targetGenerator, testDir)
   }
   generateTestSuiteMakefrags
-  generateParameterDump
 }
