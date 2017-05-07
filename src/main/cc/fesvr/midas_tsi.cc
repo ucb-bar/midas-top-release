@@ -32,25 +32,21 @@ void midas_tsi_t::wait()
   target->switch_to();
 }
 
-bool midas_tsi_t::recv_mem_req(fesvr_mem_t& req) {
-  if (mem_reqs.empty()) return false;
-  auto r = mem_reqs.front();
-  req.wr = r.wr;
-  req.addr = r.addr;
-  mem_reqs.pop_front();
-  return true;
+void midas_tsi_t::send_word(uint32_t word)
+{
+  out_data.push_back(word);
 }
 
-uint64_t midas_tsi_t::recv_mem_wdata()
+uint32_t midas_tsi_t::recv_word()
 {
-  uint64_t data = wdata.front();
-  wdata.pop_front();
-  return data;
+  uint32_t word = in_data.front();
+  in_data.pop_front();
+  return word;
 }
 
-void midas_tsi_t::send_mem_rdata(uint64_t data)
+bool midas_tsi_t::data_available()
 {
-  rdata.push_back(data);
+  return !in_data.empty();
 }
 
 bool midas_tsi_t::recv_loadmem_req(fesvr_loadmem_t& loadmem) {

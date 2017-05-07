@@ -12,9 +12,9 @@ class midas_tsi_t : public fesvr_proxy_t, public midas_fesvr_t
   virtual ~midas_tsi_t();
   virtual void tick();
 
-  virtual bool recv_mem_req(fesvr_mem_t& req);
-  virtual uint64_t recv_mem_wdata();
-  virtual void send_mem_rdata(uint64_t);
+  virtual bool data_available();
+  virtual void send_word(uint32_t word);
+  virtual uint32_t recv_word();
 
   virtual bool recv_loadmem_req(fesvr_loadmem_t& loadmem);
   virtual void recv_loadmem_data(void* buf, size_t len);

@@ -23,12 +23,10 @@ void mmap_fesvr_t::wait() {
       bool empty = out[0];
       if (!empty) {
         uint64_t data = out[1];
-        rdata.push_back(data);
+        out_data.push_back(data);
 #ifdef __DEBUG__
-	if (rdata.back() != 0L) {
-          fprintf(stderr, "[mmap_fesvr] read data: %llx\n", rdata.back());
-          fflush(stderr);
-	}
+        fprintf(stderr, "[mmap_fesvr] output data: %llx\n", out_data.back());
+        fflush(stderr);
 #endif
       }
       out.consume();
@@ -43,7 +41,7 @@ void mmap_fesvr_t::wait() {
       in[0] = busy();
       in[1] = done();
       in[2] = exit_code();
-      in[3] = mem_reqs.empty();
+      in[3] = in_data.empty();
       in[4] = loadmem_reqs.empty();
 #ifdef __DEBUG__
       if (in[1]) {
@@ -51,34 +49,24 @@ void mmap_fesvr_t::wait() {
         fflush(stderr);
       }
 #endif
-      if (!mem_reqs.empty()) {
-	auto req = mem_reqs.front();
-	in[5] = req.wr;
-	in[6] = req.addr;
-	if (req.wr) {
-          in[7] = wdata.front();
-	  wdata.pop_front();
-	}
-	mem_reqs.pop_front();
+      if (!in_data.empty()) {
+	in[5] = in_data.front();
+	in_data.pop_front();
 #ifdef __DEBUG__
-	if (in[5]) {
-          fprintf(stderr, "[mmap_fesvr] write addr: %llx, data: %llx\n", in[6], in[7]);
-	} else {
-          // fprintf(stderr, "[mmap_fesvr] read addr: %llx\n", in[6]);
-	}
+        fprintf(stderr, "[mmap_fesvr] input data: %llx\n", in[5]);
         fflush(stderr);
 #endif
       }
       if (!loadmem_reqs.empty()) {
         auto loadmem = loadmem_reqs.front();
-	in[8] = loadmem.addr;
-	in[9] = loadmem.size;
-        std::copy(loadmem_data.begin(), loadmem_data.begin() + loadmem.size, (char*)&in[10]);
+	in[6] = loadmem.addr;
+	in[7] = loadmem.size;
+        std::copy(loadmem_data.begin(), loadmem_data.begin() + loadmem.size, (char*)&in[8]);
 	loadmem_data.erase(loadmem_data.begin(), loadmem_data.begin() + loadmem.size);
 	loadmem_reqs.pop_front();
 #ifdef __DEBUG__
-        // fprintf(stderr, "[mmap_fesvr] loadmem addr: %llx, size: %llu\n", in[8], in[9]);
-        char* base = (char*)&in[10];
+        // fprintf(stderr, "[mmap_fesvr] loadmem addr: %llx, size: %llu\n", in[6], in[7]);
+        char* base = (char*)&in[8];
 	for (size_t off = 0 ; off < loadmem.size ; off += sizeof(uint64_t)) {
           // fprintf(stderr, "[mmap_fesvr] mem[%llx] <- %016llx\n", loadmem.addr + off, *(uint64_t*)(base + off));
 	}

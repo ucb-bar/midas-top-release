@@ -25,3 +25,6 @@
 [submodule "SimpleNIC"]
 	path = SimpleNIC
 	url = git@github.com:firesim/SimpleNIC.git
+[submodule "testchipip"]
+	path = testchipip
+	url = https://github.com/ucb-bar/testchipip.git

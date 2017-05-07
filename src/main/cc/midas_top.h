@@ -3,10 +3,10 @@
 
 #include "simif.h"
 #include "endpoints/sim_mem.h"
-#include "serial.h"
-#include "fesvr_proxy.h"
+#include "endpoints/serial.h"
+#include "fesvr/fesvr_proxy.h"
 #ifdef SIMPLE_NIC
-#include "switch.h"
+#include "endpoints/switch.h"
 #endif
 
 class midas_top_t: virtual simif_t
@@ -19,8 +19,7 @@ public:
   void loadmem();
 
 private:
-  serial_t serial;
-  sim_mem_t mem;
+  std::vector<endpoint_t*> endpoints;
   fesvr_proxy_t* fesvr;
 #ifdef SIMPLE_NIC
   switch_t sw;

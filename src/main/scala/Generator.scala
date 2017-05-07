@@ -2,6 +2,7 @@ package midas
 package top
 
 import rocketchip._
+import testchipip._
 import diplomacy.LazyModule
 import config.Parameters
 import util.{GeneratorApp, ParsedInputNames}
@@ -9,23 +10,25 @@ import DefaultTestSuites._
 import java.io.File
 
 class MidasTop(implicit p: Parameters) extends BaseTop
-  with PeripheryBootROM
-  with PeripheryFesvr
-  with PeripheryMasterAXI4Mem
-  with PeripheryCounter
-  with HardwiredResetVector
-  with MidasPlexMaster
+    with PeripheryMasterAXI4Mem
+    with PeripheryBootROM
+    with PeripheryZero
+    with PeripheryCounter
+    with HardwiredResetVector
+    with MidasPlexMaster
+    with PeripherySerial
 {
   override lazy val module = new MidasTopModule(this, () => new MidasTopBundle(this))
 }
 
 class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
-  with PeripheryBootROMBundle
-  with PeripheryFesvrBundle
-  with PeripheryMasterAXI4MemBundle
-  with PeripheryCounterBundle
-  with HardwiredResetVectorBundle
-  with MidasPlexMasterBundle
+    with PeripheryMasterAXI4MemBundle
+    with PeripheryBootROMBundle
+    with PeripheryZeroBundle
+    with PeripheryCounterBundle
+    with HardwiredResetVectorBundle
+    with MidasPlexMasterBundle
+    with PeripherySerialBundle
 {
   override def cloneType = (new MidasTopBundle(_outer) {
     override val mem_axi4 = outer.mem_axi4.bundleOut.cloneType
@@ -33,13 +36,14 @@ class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
 }
 
 class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle[L]](_outer: L, _io: () => B)
-  extends BaseTopModule(_outer, _io)
-  with PeripheryBootROMModule
-  with PeripheryFesvrModule
-  with PeripheryMasterAXI4MemModule
-  with PeripheryCounterModule
-  with HardwiredResetVectorModule
-  with MidasPlexMasterModule
+    extends BaseTopModule(_outer, _io)
+    with PeripheryMasterAXI4MemModule
+    with PeripheryBootROMModule
+    with PeripheryZeroModule
+    with PeripheryCounterModule
+    with HardwiredResetVectorModule
+    with MidasPlexMasterModule
+    with PeripherySerialModule
 
 trait HasGenerator extends GeneratorApp {
   def getGenerator(targetNames: ParsedInputNames, params: Parameters) =

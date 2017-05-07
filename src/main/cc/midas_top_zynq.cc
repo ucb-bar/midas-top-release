@@ -1,6 +1,6 @@
 #include "simif_zynq.h"
-#include "midas_top.h"
-#include "midas_tsi.h"
+#include "fesvr/midas_top.h"
+#include "fesvr/midas_tsi.h"
 
 class midas_top_zynq_t:
   public simif_zynq_t,

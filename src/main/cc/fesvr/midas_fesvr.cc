@@ -58,41 +58,70 @@ int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)
   }
 }
 
-void midas_fesvr_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
+
+void midas_fesvr_t::push_addr(reg_t addr)
 {
-  for (size_t off = 0 ; off < nbytes ; off += sizeof(uint64_t)) {
-    uint64_t data = read_mem(taddr + off);
-    memcpy((char*)dst + off, &data, std::min(sizeof(uint64_t), nbytes - off));
+  uint32_t data[FESVR_ADDR_CHUNKS];
+  for (int i = 0; i < FESVR_ADDR_CHUNKS; i++) {
+    data[i] = addr & 0xffffffff;
+    addr = addr >> 32;
   }
+  write(data, FESVR_ADDR_CHUNKS);
 }
 
-void midas_fesvr_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
+void midas_fesvr_t::push_len(size_t len)
 {
+  uint32_t data[FESVR_LEN_CHUNKS];
+  for (int i = 0; i < FESVR_LEN_CHUNKS; i++) {
+    data[i] = len & 0xffffffff;
+    len = len >> 32;
+  }
+  write(data, FESVR_LEN_CHUNKS);
+}
+
+void midas_fesvr_t::read_chunk(reg_t taddr, size_t nbytes, void* dst)
+{
+  const uint32_t cmd = FESVR_CMD_READ;
+  uint32_t *result = static_cast<uint32_t*>(dst);
+  size_t len = nbytes / sizeof(uint32_t);
+
+  write(&cmd, 1);
+  push_addr(taddr);
+  push_len(len - 1);
+
+  read(result, len);
+}
+
+void midas_fesvr_t::write_chunk(reg_t taddr, size_t nbytes, const void* src)
+{
+  const uint32_t cmd = FESVR_CMD_WRITE;
+  const uint32_t *src_data = static_cast<const uint32_t*>(src);
+  size_t len = nbytes / sizeof(uint32_t);
+
 #ifndef __CYGWIN__
   if (is_loadmem) {
     load_mem(taddr, nbytes, src);
   } else
 #endif
   {
-    for (size_t off = 0 ; off < nbytes ; off += sizeof(uint64_t)) {
-      uint64_t data;
-      memcpy(&data, (const char*)src + off, std::min(sizeof(uint64_t), nbytes - off));
-      write_mem(taddr + off, data);
-    }
+    write(&cmd, 1);
+    push_addr(taddr);
+    push_len(len - 1);
+
+    write(src_data, len);
   }
 }
 
-uint64_t midas_fesvr_t::read_mem(addr_t addr) {
-  mem_reqs.push_back(fesvr_mem_t(false, addr)); 
-  while (rdata.empty()) wait();
-  uint64_t data = rdata.front();
-  rdata.pop_front();
-  return data;
+void midas_fesvr_t::read(uint32_t* data, size_t len) {
+  for (size_t i = 0 ; i < len ; i++) {
+    while (out_data.empty()) wait();
+    data[i] = out_data.front();
+    out_data.pop_front();
+  }
 }
 
-void midas_fesvr_t::write_mem(addr_t addr, uint64_t data) {
-  mem_reqs.push_back(fesvr_mem_t(true, addr));
-  wdata.push_back(data);
+void midas_fesvr_t::write(const uint32_t* data, size_t len) {
+  in_data.insert(in_data.end(), data, data + len);
 }
 
 void midas_fesvr_t::load_mem(addr_t addr, size_t nbytes, const void* src) {
