@@ -30,7 +30,6 @@ void midas_fesvr_t::idle()
 // Interrupt each core to make it start executing
 void midas_fesvr_t::reset()
 {
-  uint32_t one = 1;
   reg_t ipis[NHARTS_MAX];
   int ncores = get_ipi_addrs(ipis);
 
@@ -39,8 +38,17 @@ void midas_fesvr_t::reset()
       abort();
   }
 
-  for (int i = 0; i < ncores; i++)
-    write_chunk(ipis[i], sizeof(uint32_t), &one);
+  for (int i = 0; i < ncores; i++) {
+    uint32_t data = 1;
+    write_chunk(ipis[i], sizeof(uint32_t), &data);
+    /* do {
+      read_chunk(ipis[i], sizeof(uint32_t), &data);
+    } while(!data);
+fprintf(stderr, "ipi addr: %x, passed!!!\n", ipis[i]);
+    data = 0;
+    write_chunk(ipis[i], sizeof(uint32_t), &data);
+    */
+  }
 }
 
 int midas_fesvr_t::get_ipi_addrs(reg_t *ipis)

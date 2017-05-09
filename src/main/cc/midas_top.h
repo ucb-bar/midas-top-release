@@ -2,9 +2,8 @@
 #define __MIDAS_TOP_H
 
 #include "simif.h"
-#include "endpoints/sim_mem.h"
-#include "endpoints/serial.h"
 #include "fesvr/fesvr_proxy.h"
+#include "endpoints/endpoint.h"
 #ifdef SIMPLE_NIC
 #include "endpoints/switch.h"
 #endif

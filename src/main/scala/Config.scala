@@ -20,7 +20,10 @@ class ZynqConfig extends Config(new WithMidasTopEndpoints ++ new midas.ZynqConfi
 class CatapultConfig extends Config(new WithMidasTopEndpoints ++ new midas.CatapultConfig)
 
 class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
-  case EndpointKey => up(EndpointKey) ++ core.EndpointMap(Seq(new endpoints.SimSerialIO))
+  case EndpointKey => up(EndpointKey) ++ core.EndpointMap(Seq(
+    new endpoints.SimSerialIO,
+    new endpoints.SimUART
+  ))
 }) ++ new WithSerialAdapter)
 
 class WithLBPipe extends Config((site, here ,up) => {

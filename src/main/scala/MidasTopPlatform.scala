@@ -58,6 +58,7 @@ trait MidasTiles extends MidasTopPlatform {
 
   private def wireInterrupts(x: TileInterrupts, i: Int) {
     x := clint.module.io.tiles(i)
+    x.debug := false.B
     x.meip := tileIntNodes(i).bundleOut(0)(0)
     x.seip foreach (_ := tileIntNodes(i).bundleOut(0)(1))
   }

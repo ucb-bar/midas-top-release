@@ -5,7 +5,7 @@ serial_t::serial_t(simif_t* sim, fesvr_proxy_t* fesvr):
 {
 }
 
-void serial_t::send(serial_data_t& data) {
+void serial_t::send() {
   if (data.in.fire()) {
     write(SERIALWIDGET_0(in_bits), data.in.bits);
     write(SERIALWIDGET_0(in_valid), data.in.valid);
@@ -15,7 +15,7 @@ void serial_t::send(serial_data_t& data) {
   }
 }
 
-void serial_t::recv(serial_data_t& data) {
+void serial_t::recv() {
   data.in.ready = read(SERIALWIDGET_0(in_ready));
   data.out.valid = read(SERIALWIDGET_0(out_valid));
   if (data.out.valid) {
@@ -24,10 +24,9 @@ void serial_t::recv(serial_data_t& data) {
 }
 
 void serial_t::work() {
-  serial_data_t data;
   data.out.ready = true;
   do {
-    this->recv(data);
+    this->recv();
 
     data.in.valid = fesvr->data_available();
     if (data.in.fire()) {
@@ -37,7 +36,7 @@ void serial_t::work() {
       fesvr->send_word(data.out.bits);
     }
 
-    this->send(data);
+    this->send();
 
     fesvr->tick(); 
   } while (data.in.fire() || data.out.fire());

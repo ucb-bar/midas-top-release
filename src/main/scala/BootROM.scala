@@ -9,7 +9,9 @@ import coreplex._
 import rocketchip._
 
 trait PeripheryBootROM {
-  this: TopNetwork =>
+  this: TopNetwork {
+    val uartConfigs: Seq[sifive.blocks.devices.uart.UARTConfig]
+  } =>
   val coreplex: MidasTopPlatform
 
   private val bootrom_address = 0x1000
@@ -19,6 +21,13 @@ trait PeripheryBootROM {
   // that does not comform to PK's expectation. So we prepend what we want.
   private lazy val configString = {
     val sb = new StringBuilder
+    sb append "uart {\n"
+    uartConfigs.zipWithIndex map { case (c, i) =>
+      sb append "  0 {\n"
+      sb append "  addr 0x%x;\n".format(c.address)
+      sb append "  };\n"
+    }
+    sb append "};\n"
     sb append "ram {\n"
     sb append "  0 {\n"
     sb append "  addr 0x%x;\n".format(p(ExtMem).base)

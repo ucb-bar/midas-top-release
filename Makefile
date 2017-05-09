@@ -37,7 +37,7 @@ output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
 
 driver_h = $(wildcard $(driver_dir)/*.h)
 emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_emul midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial))
+	midas_top_emul midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
 midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
 	$(wildcard $(simif_dir)/endpoints/*.h)
 midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
@@ -48,7 +48,7 @@ SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 src_path = src/main/scala
 submodules = . chisel firrtl midas rocket-chip rocket-chip/hardfloat boom \
-	testchipip $(MIDASTOP_ADDONS)
+	testchipip sifive-blocks $(MIDASTOP_ADDONS)
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
 shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo $(PLATFORM)| cut -c 2-)Shim
@@ -191,7 +191,7 @@ $(output_dir)/libfesvr$(so): $(fesvr_dir)/build/libfesvr$(so)
 ifeq ($(PLATFORM),zynq)
 # Compile Driver
 zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_zynq midas_tsi midas_top midas_fesvr serial))
+	midas_top_zynq midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
 
 $(zynq): $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
 	mkdir -p $(output_dir)/build
@@ -233,9 +233,9 @@ ifeq ($(PLATFORM),catapult)
 # Compile midas-fesvr in cygwin only
 ifneq ($(SHELL),sh.exe)
 fesvr_files = channel midas_fesvr mmap_fesvr
-fesvr_h = $(addprefix $(driver_dir)/,       $(addsuffix .h, $(fesvr_files)))
+fesvr_h = $(addprefix $(driver_dir)/fesvr,  $(addsuffix .h, $(fesvr_files)))
 fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
-$(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/%.cc $(fesvr_h)
+$(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/fesvr/%.cc $(fesvr_h)
 	mkdir -p $(output_dir)/build
 	g++ -I$(fesvr_dir) -std=c++11 -D__addr_t_defined -c -o $@ $<
 
@@ -248,8 +248,8 @@ endif
 
 # Compile Driver
 catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_catapult channel midas_top serial \
-	$(if $(filter SimpleNIC,$(MIDASTOP_ADDONS)),switch,)))
+	midas_top_catapult midas_top fesvr/channel endpoints/serial endpoints/uart \
+	$(if $(filter SimpleNIC,$(MIDASTOP_ADDONS)),endpoints/switch,)))
 
 $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
 	mkdir -p $(output_dir)/build

@@ -4,15 +4,16 @@
 #include "endpoints/endpoint.h"
 #include "fesvr/fesvr_proxy.h"
 
+template<class T>
 struct serial_data_t {
   struct {
-    uint64_t bits;
+    T bits;
     bool valid;
     bool ready;
     bool fire() { return valid && ready; }
   } in;
   struct {
-    uint64_t bits;
+    T bits;
     bool ready;
     bool valid;
     bool fire() { return valid && ready; }
@@ -23,14 +24,15 @@ class serial_t: public endpoint_t
 {
 public:
   serial_t(simif_t* sim, fesvr_proxy_t* fesvr);
-  void send(serial_data_t&);
-  void recv(serial_data_t&);
+  void send();
+  void recv();
   void work();
   virtual void tick() { }
   virtual bool done() { return read(SERIALWIDGET_0(done)); }
   virtual bool stall() { return false; }
 
 private:
+  serial_data_t<uint32_t> data;
   fesvr_proxy_t* fesvr;
 };
 

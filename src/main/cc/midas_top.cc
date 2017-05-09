@@ -1,4 +1,7 @@
 #include "midas_top.h"
+#include "endpoints/sim_mem.h"
+#include "endpoints/serial.h"
+#include "endpoints/uart.h"
 
 midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fesvr)
 #ifdef SIMPLE_NIC
@@ -13,6 +16,7 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fes
     }
   }
 
+  endpoints.push_back(new uart_t(this));
   endpoints.push_back(new serial_t(this, fesvr));
   endpoints.push_back(new sim_mem_t(this, argc, argv));
 }
@@ -90,7 +94,6 @@ void midas_top_t::run(size_t step_size) {
   target_reset(0, 5);
 
   uint64_t start_time = timestamp();
-
   loop(step_size);
 
   uint64_t end_time = timestamp();
