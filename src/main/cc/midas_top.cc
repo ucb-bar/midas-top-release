@@ -1,7 +1,9 @@
 #include "midas_top.h"
+#include "endpoints/sim_mem.h"
+#include "endpoints/serial.h"
+#include "endpoints/uart.h"
 
-midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr):
-  serial(this, fesvr), mem(this, argc, argv), fesvr(fesvr)
+midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fesvr)
 #ifdef SIMPLE_NIC
   , sw(this)
 #endif
@@ -13,6 +15,10 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr):
       max_cycles = atoi(arg.c_str()+12);
     }
   }
+
+  endpoints.push_back(new uart_t(this));
+  endpoints.push_back(new serial_t(this, fesvr));
+  endpoints.push_back(new sim_mem_t(this, argc, argv));
 }
 
 void midas_top_t::loadmem() {
@@ -41,17 +47,12 @@ void midas_top_t::loop(size_t step_size) {
   size_t delta = step_size;
 
   do {
-    serial.recv();
-    serial.tick();
-    loadmem();
-    serial.send();
-
 #ifdef SIMPLE_NIC
     sw.recv();
     sw.tick();
     sw.send();
 #endif
-    if (serial.busy()
+    if (fesvr->busy()
 #ifdef SIMPLE_NIC
         || sw.busy()
 #endif
@@ -62,18 +63,37 @@ void midas_top_t::loop(size_t step_size) {
       step(delta, false);
       delta = step_size;
     }
-    while (!done() || !mem.done()) mem.tick();
+    bool _done;
+    do {
+      _done = done();
+      for (auto e: endpoints) {
+        _done &= e->done();
+        e->tick();
+      }
+    } while(!_done);
+
+    for (auto e: endpoints) {
+      if (serial_t* s = dynamic_cast<serial_t*>(e)) {
+        s->work();
+      }
+    }
+    loadmem();
   } while (!fesvr->done() && cycles() <= max_cycles);
 }
 
 void midas_top_t::run(size_t step_size) {
   // set_tracelen(TRACE_MAX_LEN);
-  mem.init();
+
+  for (auto e: endpoints) {
+    if (sim_mem_t* s = dynamic_cast<sim_mem_t*>(e)) {
+      s->init();
+    }
+  }
+
   // Assert reset T=0 -> 5
   target_reset(0, 5);
 
   uint64_t start_time = timestamp();
-
   loop(step_size);
 
   uint64_t end_time = timestamp();
@@ -86,11 +106,11 @@ void midas_top_t::run(size_t step_size) {
   }
   int exitcode = fesvr->exit_code();
   if (exitcode) {
-    fprintf(stderr, "*** FAILED *** (code = %d) after %" PRIu64 " cycles\n", exitcode, cycles());
+    fprintf(stderr, "*** FAILED *** (code = %d) after %llu cycles\n", exitcode, cycles());
   } else if (cycles() > max_cycles) {
-    fprintf(stderr, "*** FAILED *** (timeout) after %" PRIu64 " cycles\n", cycles());
+    fprintf(stderr, "*** FAILED *** (timeout) after %llu cycles\n", cycles());
   } else {
-    fprintf(stderr, "*** PASSED *** after %" PRIu64 " cycles\n", cycles());
+    fprintf(stderr, "*** PASSED *** after %llu cycles\n", cycles());
   }
   expect(!exitcode, NULL);
 }

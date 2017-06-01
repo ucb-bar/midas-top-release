@@ -2,30 +2,42 @@ package midas
 package top
 
 import rocketchip._
+import testchipip._
+import sifive.blocks.devices.uart._
 import diplomacy.LazyModule
 import config.Parameters
 import util.{GeneratorApp, ParsedInputNames}
 import DefaultTestSuites._
 import java.io.File
 
+trait PeripheryConfigs {
+  val uartConfigs = List(UARTConfig(address = BigInt(0x54000000L)))
+}
+
 class MidasTop(implicit p: Parameters) extends BaseTop
-  with PeripheryBootROM
-  with PeripheryFesvr
-  with PeripheryMasterAXI4Mem
-  with PeripheryCounter
-  with HardwiredResetVector
-  with MidasPlexMaster
+    with PeripheryConfigs
+    with PeripheryMasterAXI4Mem
+    with PeripheryBootROM
+    with PeripheryZero
+    with PeripheryCounter
+    with HardwiredResetVector
+    with MidasPlexMaster
+    with PeripherySerial
+    with PeripheryUART
 {
   override lazy val module = new MidasTopModule(this, () => new MidasTopBundle(this))
 }
 
 class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
-  with PeripheryBootROMBundle
-  with PeripheryFesvrBundle
-  with PeripheryMasterAXI4MemBundle
-  with PeripheryCounterBundle
-  with HardwiredResetVectorBundle
-  with MidasPlexMasterBundle
+    with PeripheryConfigs
+    with PeripheryMasterAXI4MemBundle
+    with PeripheryBootROMBundle
+    with PeripheryZeroBundle
+    with PeripheryCounterBundle
+    with HardwiredResetVectorBundle
+    with MidasPlexMasterBundle
+    with PeripherySerialBundle
+    with PeripheryUARTBundle
 {
   override def cloneType = (new MidasTopBundle(_outer) {
     override val mem_axi4 = outer.mem_axi4.bundleOut.cloneType
@@ -33,13 +45,16 @@ class MidasTopBundle[+L <: MidasTop](_outer: L) extends BaseTopBundle(_outer)
 }
 
 class MidasTopModule[+L <: MidasTop, +B <: MidasTopBundle[L]](_outer: L, _io: () => B)
-  extends BaseTopModule(_outer, _io)
-  with PeripheryBootROMModule
-  with PeripheryFesvrModule
-  with PeripheryMasterAXI4MemModule
-  with PeripheryCounterModule
-  with HardwiredResetVectorModule
-  with MidasPlexMasterModule
+    extends BaseTopModule(_outer, _io)
+    with PeripheryConfigs
+    with PeripheryMasterAXI4MemModule
+    with PeripheryBootROMModule
+    with PeripheryZeroModule
+    with PeripheryCounterModule
+    with HardwiredResetVectorModule
+    with MidasPlexMasterModule
+    with PeripherySerialModule
+    with PeripheryUARTModule
 
 trait HasGenerator extends GeneratorApp {
   def getGenerator(targetNames: ParsedInputNames, params: Parameters) =

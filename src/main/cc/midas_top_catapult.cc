@@ -14,27 +14,17 @@ fesvr_channel_t::~fesvr_channel_t()
 {
 }
 
-bool fesvr_channel_t::recv_mem_req(fesvr_mem_t& req) {
-  if (mem_reqs.empty()) return false;
-  auto r = mem_reqs.front();
-  req.wr = r.wr;
-  req.addr = r.addr;
-  mem_reqs.pop_front();
-  return true;
+void fesvr_channel_t::send_word(uint32_t word) {
+  out_data.push_back(word);
 }
 
-uint64_t fesvr_channel_t::recv_mem_wdata()
-{
-  uint64_t data = wdata.front();
-  wdata.pop_front();
-  return data;
+uint32_t fesvr_channel_t::recv_word() {
+  uint32_t word = in_data.front();
+  in_data.pop_front();
+  return word;
 }
 
-
-void fesvr_channel_t::send_mem_rdata(uint64_t data)
-{
-  rdata.push_back(data);
-}
+bool fesvr_channel_t::data_available() { return !in_data.empty(); }
 
 bool fesvr_channel_t::recv_loadmem_req(fesvr_loadmem_t& loadmem) {
   if (loadmem_reqs.empty()) return false;
@@ -55,15 +45,13 @@ void fesvr_channel_t::tick() {
   do {
     out.acquire();
     if ((ready = out.ready())) {
-      out[0] = rdata.empty();
-      if (!rdata.empty()) {
-        out[1] = rdata.front();
-	rdata.pop_front();
+      out[0] = out_data.empty();
+      if (!out_data.empty()) {
+        out[1] = out_data.front();
+	out_data.pop_front();
 #ifdef __DEBUG__
-	if (out[1] != 0) {
-          fprintf(stderr, "[fesvr_channel] read data: %llx\n", out[1]);
-          fflush(stderr);
-	}
+        fprintf(stderr, "[fesvr_channel] output data: %llx\n", out[1]);
+        fflush(stderr);
 #endif
       }
       out.produce();
@@ -84,27 +72,20 @@ void fesvr_channel_t::tick() {
         fflush(stderr);
       }
 #endif
-      bool mem_empty = in[3];
+      bool indata_empty = in[3];
       bool loadmem_empty = in[4];
-      if (!mem_empty) {
-        bool wr = in[5];
-	size_t addr = in[6];
-	uint64_t data = in[7];
-        mem_reqs.push_back(fesvr_mem_t(wr, addr));
-        if (wr) wdata.push_back(data);
+      if (!indata_empty) {
+	uint64_t data = in[5];
+        in_data.push_back(data);
 #ifdef __DEBUG__
-	if (wr) {
-          fprintf(stderr, "[fesvr_channel] write addr: %zx, data: %zx\n", addr, data);
-        } else {
-          // fprintf(stderr, "[fesvr_channel] read addr: %zx\n", addr);
-        }
+        fprintf(stderr, "[fesvr_channel] input data: %zx\n", data);
         fflush(stderr);
 #endif
       }
       if (!loadmem_empty) {
-	size_t addr = in[8];
-	size_t size = in[9];
-	char* data = (char*)&in[10];
+	size_t addr = in[6];
+	size_t size = in[7];
+	char* data = (char*)&in[8];
         loadmem_reqs.push_back(fesvr_loadmem_t(addr, size));
 	loadmem_data.insert(loadmem_data.end(), data, data + size);
 #ifdef __DEBUG__

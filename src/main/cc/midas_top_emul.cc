@@ -1,6 +1,6 @@
 #include "simif_emul.h"
 #include "midas_top.h"
-#include "midas_tsi.h"
+#include "fesvr/midas_tsi.h"
 
 class midas_top_emul_t:
   public simif_emul_t,

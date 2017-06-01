@@ -1,7 +1,7 @@
 #include "simif_catapult.h"
 #include "midas_top.h"
-#include "fesvr_proxy.h"
-#include "channel.h"
+#include "fesvr/fesvr_proxy.h"
+#include "fesvr/channel.h"
 
 class fesvr_channel_t: public fesvr_proxy_t
 {
@@ -14,9 +14,9 @@ class fesvr_channel_t: public fesvr_proxy_t
    virtual bool done() { return fesvr_done; }
    virtual int exit_code() { return exitcode; }
 
-   virtual bool recv_mem_req(fesvr_mem_t& req);
-   virtual uint64_t recv_mem_wdata();
-   virtual void send_mem_rdata(uint64_t);
+   virtual bool data_available();
+   virtual void send_word(uint32_t word);
+   virtual uint32_t recv_word();
 
    virtual bool recv_loadmem_req(fesvr_loadmem_t& loadmem);
    virtual void recv_loadmem_data(void* buf, size_t len);
@@ -24,9 +24,8 @@ class fesvr_channel_t: public fesvr_proxy_t
  private:
    channel_t in;
    channel_t out;
-   std::deque<fesvr_mem_t> mem_reqs;
-   std::deque<uint64_t> wdata;
-   std::deque<uint64_t> rdata;
+   std::deque<uint32_t> in_data;
+   std::deque<uint32_t> out_data;
    std::deque<fesvr_loadmem_t> loadmem_reqs;
    std::deque<char> loadmem_data;
    bool fesvr_busy;
