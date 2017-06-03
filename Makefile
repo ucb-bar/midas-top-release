@@ -8,9 +8,9 @@ PROJECT ?= midas.top
 CONFIG_PROJECT ?= midas.top
 # CONFIG_PROJECT ?= simplenic
 DESIGN ?= MidasTop
-CONFIG ?= DefaultExampleConfig
-# CONFIG ?= DefaultBOOMConfig
-# CONFIG ?= SmallBOOMConfig
+CONFIG ?= RocketChip2GExtMem
+# CONFIG ?= DefaultBOOM2GExtMem
+# CONFIG ?= SmallBOOM2GExtMem
 # CONFIG ?= SimpleNicMidasConfig
 #
 # PLATFORM_CONFIG calls out configuration decisions passed to midas to change
