@@ -1,7 +1,9 @@
 #include "midas_top.h"
-#include "endpoints/sim_mem.h"
 #include "endpoints/serial.h"
 #include "endpoints/uart.h"
+#include "endpoints/fpga_model.h"
+#include "endpoints/sim_mem.h"
+#include "endpoints/fpga_memory_model.h"
 
 midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fesvr)
 #ifdef SIMPLE_NIC
@@ -18,7 +20,23 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fes
 
   endpoints.push_back(new uart_t(this));
   endpoints.push_back(new serial_t(this, fesvr));
+
+#ifdef NASTIWIDGET_0
   endpoints.push_back(new sim_mem_t(this, argc, argv));
+#endif
+
+#ifdef MEMMODEL_0
+  fpga_models.push_back(new FpgaMemoryModel(
+      this,
+      AddressMap(MEMMODEL_0_R_num_registers,
+                 MEMMODEL_0_R_addrs,
+                 MEMMODEL_0_R_names,
+                 MEMMODEL_0_W_num_registers,
+                 MEMMODEL_0_W_addrs,
+                 MEMMODEL_0_W_names),
+      argc, argv, "memory_stats.csv"));
+#endif
+
 }
 
 void midas_top_t::loadmem() {
@@ -84,10 +102,8 @@ void midas_top_t::loop(size_t step_size) {
 void midas_top_t::run(size_t step_size) {
   // set_tracelen(TRACE_MAX_LEN);
 
-  for (auto e: endpoints) {
-    if (sim_mem_t* s = dynamic_cast<sim_mem_t*>(e)) {
-      s->init();
-    }
+  for (auto e: fpga_models) {
+    e->init();
   }
 
   // Assert reset T=0 -> 5
@@ -113,4 +129,10 @@ void midas_top_t::run(size_t step_size) {
     fprintf(stderr, "*** PASSED *** after %llu cycles\n", cycles());
   }
   expect(!exitcode, NULL);
+
+  for (auto e: fpga_models) {
+    e->profile();
+    e->finish();
+  }
+
 }

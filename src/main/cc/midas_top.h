@@ -4,6 +4,7 @@
 #include "simif.h"
 #include "fesvr/fesvr_proxy.h"
 #include "endpoints/endpoint.h"
+#include "endpoints/fpga_model.h"
 #ifdef SIMPLE_NIC
 #include "endpoints/switch.h"
 #endif
@@ -19,6 +20,7 @@ public:
 
 private:
   std::vector<endpoint_t*> endpoints;
+  std::vector<FpgaModel*> fpga_models;
   fesvr_proxy_t* fesvr;
 #ifdef SIMPLE_NIC
   switch_t sw;
