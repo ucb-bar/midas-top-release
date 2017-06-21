@@ -61,8 +61,9 @@ void midas_top_t::loadmem() {
   }
 }
 
-void midas_top_t::loop(size_t step_size) {
+void midas_top_t::loop(size_t step_size, size_t profile_interval) {
   size_t delta = step_size;
+  size_t profile_count = 0;
 
   do {
 #ifdef SIMPLE_NIC
@@ -96,10 +97,19 @@ void midas_top_t::loop(size_t step_size) {
       }
     }
     loadmem();
+
+    // Every profile_interval iterations, collect state from all fpga models
+    profile_count++;
+    if (profile_interval != 0 && profile_count == profile_interval){
+      for (auto mod: fpga_models) {
+        mod->profile();
+      }
+      profile_count = 0;
+    }
   } while (!fesvr->done() && cycles() <= max_cycles);
 }
 
-void midas_top_t::run(size_t step_size) {
+void midas_top_t::run(size_t step_size, size_t profile_interval) {
   // set_tracelen(TRACE_MAX_LEN);
 
   for (auto e: fpga_models) {
@@ -110,7 +120,7 @@ void midas_top_t::run(size_t step_size) {
   target_reset(0, 5);
 
   uint64_t start_time = timestamp();
-  loop(step_size);
+  loop(step_size, profile_interval);
 
   uint64_t end_time = timestamp();
   double sim_time = diff_secs(end_time, start_time);
@@ -131,8 +141,6 @@ void midas_top_t::run(size_t step_size) {
   expect(!exitcode, NULL);
 
   for (auto e: fpga_models) {
-    e->profile();
     e->finish();
   }
-
 }
