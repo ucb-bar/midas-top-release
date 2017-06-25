@@ -4,9 +4,6 @@
 #include "simif.h"
 #include "fesvr/fesvr_proxy.h"
 #include "endpoints/endpoint.h"
-#ifdef SIMPLE_NIC
-#include "endpoints/switch.h"
-#endif
 
 class midas_top_t: virtual simif_t
 {
@@ -17,12 +14,14 @@ public:
   void run(size_t step_size);
   void loadmem();
 
+protected:
+   void add_endpoint(endpoint_t* endpoint) {
+     endpoints.push_back(endpoint);
+   }
+
 private:
   std::vector<endpoint_t*> endpoints;
   fesvr_proxy_t* fesvr;
-#ifdef SIMPLE_NIC
-  switch_t sw;
-#endif
   uint64_t max_cycles;
 
   void loop(size_t step_size);
