@@ -128,5 +128,4 @@ void midas_fesvr_t::write(const uint32_t* data, size_t len) {
 void midas_fesvr_t::load_mem(addr_t addr, size_t nbytes, const void* src) {
   loadmem_reqs.push_back(fesvr_loadmem_t(addr, nbytes));
   loadmem_data.insert(loadmem_data.end(), (const char*)src, (const char*)src + nbytes);
-  while (!loadmem_reqs.empty() || !loadmem_data.empty()) wait();
 }
