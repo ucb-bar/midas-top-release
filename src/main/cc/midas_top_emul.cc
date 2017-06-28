@@ -15,6 +15,6 @@ int main(int argc, char** argv) {
   midas_tsi_t tsi(std::vector<std::string>(argv + 1, argv + argc));
   midas_top_emul_t midas_top(argc, argv, &tsi);
   midas_top.init(argc, argv);
-  midas_top.run(128, 1000);
+  midas_top.run(128);
   return midas_top.finish();
 }

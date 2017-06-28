@@ -18,16 +18,16 @@ CONFIG ?= DefaultExampleConfig
 ifeq ($(PLATFORM),catapult)
 	PLATFORM_CONFIG ?= CatapultConfig
 else
-	# PLATFORM_CONFIG ?= ZynqConfigWithMemModel
+	#PLATFORM_CONFIG ?= ZynqConfigWithMemModel
 	PLATFORM_CONFIG ?= ZynqConfig
 endif
 
 STROBER ?=
 DRIVER ?=
 SAMPLE ?=
-# Additional argument passed to VCS/verilator simulations
-SW_SIM_ARGS ?= +mm_LATENCY=10
-#SW_SIM_ARGS ?= +dramsim +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
+
+# CML arguments used in RTL simulation
+include Makefrag-args
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
@@ -68,7 +68,6 @@ ifneq ($(filter run% %.run %.out %.vpd %.vcd,$(MAKECMDGOALS)),)
 -include $(generated_dir)/$(PROJECT).d
 endif
 
-timeout_cycles = 100000000
 disasm := 2>
 which_disasm := $(shell which spike-dasm 2> /dev/null)
 ifneq ($(which_disasm),)

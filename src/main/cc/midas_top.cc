@@ -16,6 +16,10 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fes
     if (arg.find("+max-cycles=") == 0) {
       max_cycles = atoi(arg.c_str()+12);
     }
+    //TODO: Specify this in cycles, not iterations of inner loop
+    if (arg.find("+profile-interval=") == 0) {
+      profile_interval = atoi(arg.c_str()+18);
+    }
   }
 
   endpoints.push_back(new uart_t(this));
@@ -28,12 +32,13 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fes
 #ifdef MEMMODEL_0
   fpga_models.push_back(new FpgaMemoryModel(
       this,
+      // Casts are required for now since the emitted type can change...
       AddressMap(MEMMODEL_0_R_num_registers,
-                 MEMMODEL_0_R_addrs,
-                 MEMMODEL_0_R_names,
+                 (const unsigned int*) MEMMODEL_0_R_addrs,
+                 (const char* const*) MEMMODEL_0_R_names,
                  MEMMODEL_0_W_num_registers,
-                 MEMMODEL_0_W_addrs,
-                 MEMMODEL_0_W_names),
+                 (const unsigned int*) MEMMODEL_0_W_addrs,
+                 (const char* const*) MEMMODEL_0_W_names),
       argc, argv, "memory_stats.csv"));
 #endif
 
@@ -61,7 +66,7 @@ void midas_top_t::loadmem() {
   }
 }
 
-void midas_top_t::loop(size_t step_size, size_t profile_interval) {
+void midas_top_t::loop(size_t step_size) {
   size_t delta = step_size;
   size_t profile_count = 0;
 
@@ -109,7 +114,7 @@ void midas_top_t::loop(size_t step_size, size_t profile_interval) {
   } while (!fesvr->done() && cycles() <= max_cycles);
 }
 
-void midas_top_t::run(size_t step_size, size_t profile_interval) {
+void midas_top_t::run(size_t step_size) {
   // set_tracelen(TRACE_MAX_LEN);
 
   for (auto e: fpga_models) {
@@ -120,7 +125,7 @@ void midas_top_t::run(size_t step_size, size_t profile_interval) {
   target_reset(0, 5);
 
   uint64_t start_time = timestamp();
-  loop(step_size, profile_interval);
+  loop(step_size);
 
   uint64_t end_time = timestamp();
   double sim_time = diff_secs(end_time, start_time);

@@ -15,7 +15,7 @@ public:
   midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr);
   ~midas_top_t() { }
 
-  void run(size_t step_size, size_t profile_interval);
+  void run(size_t step_size);
   void loadmem();
 
 private:
@@ -30,7 +30,8 @@ private:
   uint64_t max_cycles;
   // profile interval: num step_size interations before reading model stats
   // profile_interval = 0 disables model polling
-  void loop(size_t step_size, size_t profile_interval);
+  uint64_t profile_interval = 0;
+  void loop(size_t step_size);
 };
 
 #endif // __MIDAS_TOP_H

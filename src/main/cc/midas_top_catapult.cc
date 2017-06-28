@@ -103,6 +103,6 @@ int main(int argc, char** argv) {
   fesvr_channel_t fesvr;
   midas_top_catapult_t midas_top(argc, argv, &fesvr);
   midas_top.init(argc, argv, false);
-  midas_top.run(2048, 0);
+  midas_top.run(2048);
   return midas_top.finish();
 }
