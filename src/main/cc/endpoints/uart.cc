@@ -35,6 +35,9 @@ void uart_t::tick() {
 
     if (data.out.fire()) {
       fprintf(stdout, "%c", data.out.bits);
+#ifdef _WIN32
+      fflush(stdout);
+#endif
     }
 
     this->send();

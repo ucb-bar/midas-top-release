@@ -41,64 +41,69 @@ void fesvr_channel_t::recv_loadmem_data(void* buf, size_t len) {
 }
 
 void fesvr_channel_t::tick() {
-  bool ready;
-  do {
-    out.acquire();
-    if ((ready = out.ready())) {
-      out[0] = out_data.empty();
-      if (!out_data.empty()) {
-        out[1] = out_data.front();
-	out_data.pop_front();
-#ifdef __DEBUG__
-        fprintf(stderr, "[fesvr_channel] output data: %llx\n", out[1]);
-        fflush(stderr);
-#endif
-      }
-      out.produce();
-    }
-    out.release();
-  } while(!ready);
+  bool outdata_empty, indata_empty, loadmem_empty;
 
-  bool valid;
   do {
-    in.acquire();
-    if ((valid = in.valid())) {
-      fesvr_busy = in[0];
-      fesvr_done = in[1];
-      exitcode = in[2];
+    bool ready;
+    do {
+      out.acquire();
+      if ((ready = out.ready())) {
+        out[0] = (outdata_empty = out_data.empty());
+        if (!out_data.empty()) {
+          out[1] = out_data.front();
+          out_data.pop_front();
 #ifdef __DEBUG__
-      if (fesvr_done) {
-        fprintf(stderr, "[fesvr_channel] exitcode: %d\n", exitcode);
-        fflush(stderr);
-      }
+          fprintf(stderr, "[fesvr_channel] output data: %llx\n", out[1]);
+          fflush(stderr);
 #endif
-      bool indata_empty = in[3];
-      bool loadmem_empty = in[4];
-      if (!indata_empty) {
-	uint64_t data = in[5];
-        in_data.push_back(data);
+        }
+        out.produce();
+      }
+      out.release();
+    } while(!ready);
+  } while(!outdata_empty);
+  
+  do {
+    bool valid;
+    do {
+      in.acquire();
+      if ((valid = in.valid())) {
+        fesvr_busy = in[0];
+        fesvr_done = in[1];
+        exitcode = in[2];
 #ifdef __DEBUG__
-        fprintf(stderr, "[fesvr_channel] input data: %zx\n", data);
-        fflush(stderr);
+        if (fesvr_done) {
+          fprintf(stderr, "[fesvr_channel] exitcode: %d\n", exitcode);
+          fflush(stderr);
+        }
 #endif
-      }
-      if (!loadmem_empty) {
-	size_t addr = in[6];
-	size_t size = in[7];
-	char* data = (char*)&in[8];
-        loadmem_reqs.push_back(fesvr_loadmem_t(addr, size));
-	loadmem_data.insert(loadmem_data.end(), data, data + size);
+        if (!(indata_empty = in[3])) {
+          uint64_t data = in[5];
+          in_data.push_back(data);
 #ifdef __DEBUG__
-        // fprintf(stderr, "[fesvr_channel] loadmem addr:%zx, size: %zx\n", addr, size);
-        // fflush(stderr);
+          fprintf(stderr, "[fesvr_channel] input data: %zx\n", data);
+          fflush(stderr);
 #endif
+        }
+        if (!(loadmem_empty = in[4])) {
+          size_t addr = in[6];
+          size_t size = in[7];
+          char* data = (char*)&in[8];
+          loadmem_reqs.push_back(fesvr_loadmem_t(addr, size));
+          loadmem_data.insert(loadmem_data.end(), data, data + size);
+#ifdef __DEBUG__
+          // fprintf(stderr, "[fesvr_channel] loadmem addr:%zx, size: %zx\n", addr, size);
+          // fflush(stderr);
+#endif
+        }
+        in.consume();
       }
-      in.consume();
-    }
-    in.release();
-  } while(!valid);
+      in.release();
+    } while(!valid);
+  } while(!indata_empty || !loadmem_empty);
 }
 
+#ifndef NO_MAIN
 int main(int argc, char** argv) {
   fesvr_channel_t fesvr;
   midas_top_catapult_t midas_top(argc, argv, &fesvr);
@@ -106,3 +111,4 @@ int main(int argc, char** argv) {
   midas_top.run(2048);
   return midas_top.finish();
 }
+#endif

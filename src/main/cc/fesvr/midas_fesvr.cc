@@ -41,13 +41,6 @@ void midas_fesvr_t::reset()
   for (int i = 0; i < ncores; i++) {
     uint32_t data = 1;
     write_chunk(ipis[i], sizeof(uint32_t), &data);
-    /* do {
-      read_chunk(ipis[i], sizeof(uint32_t), &data);
-    } while(!data);
-fprintf(stderr, "ipi addr: %x, passed!!!\n", ipis[i]);
-    data = 0;
-    write_chunk(ipis[i], sizeof(uint32_t), &data);
-    */
   }
 }
 
@@ -106,11 +99,11 @@ void midas_fesvr_t::write_chunk(reg_t taddr, size_t nbytes, const void* src)
   const uint32_t *src_data = static_cast<const uint32_t*>(src);
   size_t len = nbytes / sizeof(uint32_t);
 
-#ifndef __CYGWIN__
+// #ifndef __CYGWIN__
   if (is_loadmem) {
     load_mem(taddr, nbytes, src);
   } else
-#endif
+// #endif
   {
     write(&cmd, 1);
     push_addr(taddr);

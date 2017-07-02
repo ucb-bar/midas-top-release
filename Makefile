@@ -1,30 +1,31 @@
 ##################
 #   Parameters   #
 ##################
+
+PROJECT ?= midas.top
+DESIGN ?= MidasTop
+
+TARGET_PROJECT ?= midas.top
+TARGET_CONFIG ?= RocketChip2GExtMem
+# TARGET_CONFIG ?= DefaultBOOM2GExtMem
+# TARGET_CONFIG ?= SmallBOOM2GExtMem
+
 PLATFORM ?= zynq
 #PLATFORM ?= catapult
-EMUL ?= verilator
-PROJECT ?= midas.top
-CONFIG_PROJECT ?= midas.top
-# CONFIG_PROJECT ?= simplenic
-DESIGN ?= MidasTop
-CONFIG ?= DefaultExampleConfig
-# CONFIG ?= DefaultBOOMConfig
-# CONFIG ?= SmallBOOMConfig
-# CONFIG ?= SimpleNicMidasConfig
-#
-# PLATFORM_CONFIG calls out configuration decisions passed to midas to change
-# what is instantiated in the host
+PLATFORM_PROJECT ?= midas.top
 ifeq ($(PLATFORM),catapult)
-	PLATFORM_CONFIG ?= CatapultConfig
+PLATFORM_CONFIG ?= CatapultConfig
 else
-	#PLATFORM_CONFIG ?= ZynqConfigWithMemModel
-	PLATFORM_CONFIG ?= ZynqConfig
+PLATFORM_CONFIG ?= ZynqConfig
+# PLATFORM_CONFIG ?= ZynqConfigWithMemModel
 endif
 
 STROBER ?=
 DRIVER ?=
 SAMPLE ?=
+
+# Additional argument passed to VCS/verilator simulations
+EMUL ?= verilator
 
 # CML arguments used in RTL simulation
 include Makefrag-args
@@ -32,23 +33,20 @@ include Makefrag-args
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
 driver_dir = $(base_dir)/src/main/cc
-generated_dir = $(base_dir)/generated-src/$(PLATFORM)/$(CONFIG)
-output_dir = $(base_dir)/output/$(PLATFORM)/$(CONFIG)
+generated_dir ?= $(base_dir)/generated-src/$(PLATFORM)/$(TARGET_CONFIG)
+output_dir ?= $(base_dir)/output/$(PLATFORM)/$(TARGET_CONFIG)
 
-driver_h = $(wildcard $(driver_dir)/*.h)
+driver_h = $(shell find $(driver_dir) -name ".h")
+midas_h = $(shell find $(simif_dir) -name "*.h")
+midas_cc = $(shell find $(simif_dir) -name "*.cc")
 emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
 	midas_top_emul midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
-midas_h = $(wildcard $(simif_dir)/*.h) $(wildcard $(simif_dir)/utils/*.h) \
-	$(wildcard $(simif_dir)/endpoints/*.h)
-midas_cc = $(wildcard $(simif_dir)/*.cc) $(wildcard $(simif_dir)/utils/*.cc) \
-	$(wildcard $(simif_dir)/endpoints/*.cc)
 
 SBT ?= sbt
 SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 src_path = src/main/scala
-submodules = . chisel firrtl midas rocket-chip rocket-chip/hardfloat boom \
-	testchipip sifive-blocks $(MIDASTOP_ADDONS)
+submodules = . chisel firrtl midas rocket-chip rocket-chip/hardfloat boom testchipip sifive-blocks
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
 shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo $(PLATFORM)| cut -c 2-)Shim
@@ -56,7 +54,8 @@ shim := $(shell echo $(PLATFORM)| cut -c 1 | tr [:lower:] [:upper:])$(shell echo
 verilog = $(generated_dir)/$(shim).v
 $(verilog): $(chisel_srcs)
 	$(SBT) $(SBT_FLAGS) \
-	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG) $(PROJECT) $(PLATFORM_CONFIG)"
+	"run $(if $(STROBER),strober,midas) $(patsubst $(base_dir)/%,%,$(dir $@)) \
+	$(PROJECT) $(DESIGN) $(TARGET_PROJECT) $(TARGET_CONFIG) $(PLATFORM_PROJECT) $(PLATFORM_CONFIG)"
 verilog: $(verilog)
 
 header = $(generated_dir)/$(DESIGN)-const.h
@@ -137,7 +136,8 @@ $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 ######################
 
 $(generated_dir)/$(DESIGN).v: $(chisel_srcs)
-	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) $(CONFIG_PROJECT) $(DESIGN) $(CONFIG_PROJECT) $(CONFIG)"
+	$(SBT) $(SBT_FLAGS) "run replay $(patsubst $(base_dir)/%,%,$(dir $@)) \
+	$(PROJECT) $(DESIGN) $(TARGET_PROJECT) $(TARGET_CONFIG) $(PLATFORM_PROJECT) $(PLATFORM_CONFIG)"
 
 compile-replay: $(generated_dir)/$(DESIGN).v
 
@@ -231,9 +231,8 @@ endif
 
 ifeq ($(PLATFORM),catapult)
 # Compile midas-fesvr in cygwin only
-ifneq ($(SHELL),sh.exe)
 fesvr_files = channel midas_fesvr mmap_fesvr
-fesvr_h = $(addprefix $(driver_dir)/fesvr,  $(addsuffix .h, $(fesvr_files)))
+fesvr_h = $(addprefix $(driver_dir)/fesvr/, $(addsuffix .h, $(fesvr_files)))
 fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
 $(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/fesvr/%.cc $(fesvr_h)
 	mkdir -p $(output_dir)/build
@@ -244,12 +243,10 @@ $(fesvr): $(fesvr_o) $(output_dir)/libfesvr$(so)
 	g++ -L$(output_dir) -Wl,-rpath,$(output_dir) -lfesvr -o $@ $(fesvr_o)
 
 fesvr: $(fesvr)
-endif
 
 # Compile Driver
 catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_catapult midas_top fesvr/channel endpoints/serial endpoints/uart \
-	$(if $(filter SimpleNIC,$(MIDASTOP_ADDONS)),endpoints/switch,)))
+	midas_top_catapult midas_top fesvr/channel endpoints/serial endpoints/uart))
 
 $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
 	mkdir -p $(output_dir)/build

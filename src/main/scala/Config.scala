@@ -41,9 +41,21 @@ class WithDDR3FIFOMAS extends Config((_,_,_) => {
   }
 )
 
-class DefaultExampleConfig extends Config(new WithSerialAdapter ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
-class DefaultBOOMConfig extends Config(new WithSerialAdapter ++ new boom.BOOMConfig)
-class SmallBOOMConfig extends Config(new WithSerialAdapter ++ new boom.SmallBoomConfig)
+class MidasTopConfig extends Config((site, here, up) => {
+   case RocketTilesKey => up(RocketTilesKey) map (tile => tile.copy(
+     icache = tile.icache map (_.copy(
+       nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
+     )),
+     dcache = tile.dcache map (_.copy(
+       nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
+     ))
+   ))
+ })
+
+class DefaultExampleConfig extends Config(new MidasTopConfig ++
+  new WithSerialAdapter ++  new WithNBigCores(1) ++ new rocketchip.BaseConfig)
+class DefaultBOOMConfig extends Config(new MidasTopConfig ++ new WithSerialAdapter ++ new boom.BOOMConfig)
+class SmallBOOMConfig extends Config(new MidasTopConfig ++ new WithSerialAdapter ++ new boom.SmallBoomConfig)
 
 class RocketChip1GExtMem extends Config(new WithExtMemSize(0x40000000L) ++ new DefaultExampleConfig)
 class RocketChip2GExtMem extends Config(new WithExtMemSize(0x80000000L) ++ new DefaultExampleConfig)

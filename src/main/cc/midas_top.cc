@@ -6,9 +6,6 @@
 #include "endpoints/fpga_memory_model.h"
 
 midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fesvr)
-#ifdef SIMPLE_NIC
-  , sw(this)
-#endif
 {
   std::vector<std::string> args(argv + 1, argv + argc);
   max_cycles = -1;
@@ -22,8 +19,8 @@ midas_top_t::midas_top_t(int argc, char** argv, fesvr_proxy_t* fesvr): fesvr(fes
     }
   }
 
-  endpoints.push_back(new uart_t(this));
-  endpoints.push_back(new serial_t(this, fesvr));
+  add_endpoint(new uart_t(this));
+  add_endpoint(new serial_t(this, fesvr));
 
 #ifdef NASTIWIDGET_0
   endpoints.push_back(new sim_mem_t(this, argc, argv));
@@ -58,7 +55,11 @@ void midas_top_t::loadmem() {
 #else
     const size_t mem_data_bytes = MEM_DATA_BITS / 8;
 #define WRITE_MEM(addr, src) \
-    mem.write_mem(addr, src)
+    for (auto e: endpoints) { \
+      if (sim_mem_t* s = dynamic_cast<sim_mem_t*>(e)) { \
+        s->write_mem(addr, src); \
+      } \
+    }
 #endif
     for (size_t off = 0 ; off < loadmem.size ; off += mem_data_bytes) {
       WRITE_MEM(loadmem.addr + off, buf + off);
@@ -71,16 +72,7 @@ void midas_top_t::loop(size_t step_size) {
   size_t profile_count = 0;
 
   do {
-#ifdef SIMPLE_NIC
-    sw.recv();
-    sw.tick();
-    sw.send();
-#endif
-    if (fesvr->busy()
-#ifdef SIMPLE_NIC
-        || sw.busy()
-#endif
-       ) {
+    if (fesvr->busy()) {
       step(1, false);
       if (--delta == 0) delta = step_size;
     } else {
