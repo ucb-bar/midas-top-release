@@ -4,6 +4,7 @@
 #include "simif.h"
 #include "fesvr/fesvr_proxy.h"
 #include "endpoints/endpoint.h"
+#include "endpoints/fpga_model.h"
 
 class midas_top_t: virtual simif_t
 {
@@ -20,10 +21,15 @@ protected:
    }
 
 private:
+  // Memory mapped endpoints bound to software models
   std::vector<endpoint_t*> endpoints;
+  // FPGA-hosted models with programmable registers & instrumentation
+  std::vector<FpgaModel*> fpga_models;
   fesvr_proxy_t* fesvr;
   uint64_t max_cycles;
-
+  // profile interval: num step_size interations before reading model stats
+  // profile_interval = 0 disables model polling
+  uint64_t profile_interval = 0;
   void loop(size_t step_size);
 };
 

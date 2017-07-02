@@ -1,0 +1,57 @@
+# This nasty piece of work contains the simulation CML arguments for testing
+# in RTL (vcs & verilator) simulation. This will be removed once we've implemented 
+# some sort of file-based configuration scheme
+
+timeout_cycles = 100000000
+# Number of inner loop iterations (fesvr evaluations) between profile FPGA models
+# (See midas_top.cc)
+PROFILE_INTERVAL ?= +profile-interval=1000
+
+# Model arguments. Arguments must be provided for all programmable registers.
+
+# Simple latency pipe arguments
+SW_SIM_ARGS ?= +mm_MEM_LATENCY=10
+
+# Latency-bandwidth pipe arguments
+#SW_SIM_ARGS ?= +mm_writeLatency=20 +mm_readLatency=20 +mm_writeMaxReqs=8 +mm_readMaxReqs=8
+
+# DDR3 Timing models
+#SW_SIM_ARGS ?= $(DRAM_TIMINGS) $(DRAM_ORGANIZATION) $(MAS_SETTINGS) $(XACTION_SETTINGS) $(PROFILE_INTERVAL)
+
+# A bit of a misnomer; but controls the total number of requests the model will accept
+XACTION_SETTINGS ?= +mm_readMaxReqs=8 +mm_writeMaxReqs=8
+
+# FIFO MAS only. FRFCFS only implements an open-page policy
+MAS_SETTINGS  ?= +mm_openPagePolicy=1
+
+# Memory organization: shared between both FIFO and FRFCFS
+# For 64 byte cacheline, 8K DRAM pages,  Single Rank,  2GiB total memory, Open Page Policy
+# Put consecutive cachelines in same DRAM page
+# | 30 : 16 |  15 : 13 |  12 : 6    | 5 : 0 |
+#  RowAddr  | BankAddr | ColumnAddr |  CL   |
+DRAM_ORGANIZATION =	+mm_rankAddr_offset=16 \
+					+mm_rankAddr_mask=0 \
+					+mm_bankAddr_offset=13 \
+					+mm_bankAddr_mask=7 \
+					+mm_rowAddr_offset=16 \
+					+mm_rowAddr_mask=32767
+
+# Timings: shared between both FIFO and FRFCFS
+# Model a 14-14-14, x8, 2Gib  DDR3 parts (micron speed grade 093). Suffices for
+# targets assuming a single synchronous domain running at 1GHz. (tCK = 1ns)
+DRAM_TIMINGS =  +mm_dramTimings_tCAS=14 \
+ 				+mm_dramTimings_tCCD=4 \
+     			+mm_dramTimings_tCMD=1 \
+     			+mm_dramTimings_tCWD=10 \
+     			+mm_dramTimings_tFAW=25 \
+     			+mm_dramTimings_tRAS=33 \
+     			+mm_dramTimings_tREFI=7020 \
+     			+mm_dramTimings_tRC=47 \
+     			+mm_dramTimings_tRCD=14\
+     			+mm_dramTimings_tRFC=160 \
+     			+mm_dramTimings_tRTP=8 \
+     			+mm_dramTimings_tRP=14 \
+     			+mm_dramTimings_tRRD=5 \
+     			+mm_dramTimings_tRTRS=2 \
+     			+mm_dramTimings_tWR=16 \
+     			+mm_dramTimings_tWTR=8
