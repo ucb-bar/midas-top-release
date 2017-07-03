@@ -12,9 +12,12 @@ TARGET_CONFIG ?= RocketChip2GExtMem
 
 PLATFORM ?= zynq
 #PLATFORM ?= catapult
+#PLATFORM ?= f1
 PLATFORM_PROJECT ?= midas.top
 ifeq ($(PLATFORM),catapult)
 PLATFORM_CONFIG ?= CatapultConfig
+else ifeq ($(PLATFORM), f1)
+PLATFORM_CONFIG ?= F1Config
 else
 PLATFORM_CONFIG ?= ZynqConfig
 # PLATFORM_CONFIG ?= ZynqConfigWithMemModel
@@ -257,12 +260,37 @@ $(catapult): $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr
 	CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 endif
 
+ifeq ($(PLATFORM),f1)
+# Compile Driver
+f1_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
+	midas_top_f1 midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
+
+$(f1): $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
+	mkdir -p $(output_dir)/build
+	cp $(header) $(output_dir)/build/
+	$(MAKE) -C $(simif_dir) f1 PLATFORM=f1 DESIGN=$(DESIGN) \
+	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) DRIVER="$(f1_cc)" \
+	CXX="$(host)-g++" \
+	CXXFLAGS="$(CXXFLAGS) -D SIMULATION_XSIM -I$(RISCV)/include -I$(base_dir)/riscv-fesvr" \
+	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
+
+f1-fpga: $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
+	mkdir -p $(output_dir)/build
+	cp $(header) $(output_dir)/build/
+	$(MAKE) -C $(simif_dir) f1 PLATFORM=f1 DESIGN=$(DESIGN) \
+	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) DRIVER="$(f1_cc)" \
+	CXX="$(host)-g++" \
+	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include -I$(base_dir)/riscv-fesvr -I$(base_dir)/../../platforms/f1/aws-fpga/sdk/userspace/include" \
+	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -lfpga_mgmt -lrt -lpthread -Wl,-rpath,/usr/local/lib"
+
+endif
+
 mostlyclean:
 	rm -rf $(verilator) $(verilator_debug) $(vcs) $(vcs_debug) $($(PLATFORM)) $(output_dir)
 
 clean:
 	rm -rf $(generated_dir) $(output_dir)
 
-.PHONY: verilog compile verilator verilator-debug vcs vcs-debug $(PLATFORM) fpga mostlyclean clean
+.PHONY: verilog compile verilator verilator-debug vcs vcs-debug $(PLATFORM) f1-fpga fpga mostlyclean clean
 
 .PRECIOUS: $(output_dir)/%.vpd $(output_dir)/%.out $(output_dir)/%.run
