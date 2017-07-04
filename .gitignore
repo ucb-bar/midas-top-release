@@ -6,3 +6,4 @@ output
 *.key
 *.fir
 *.sample
+*memory_stats.csv
