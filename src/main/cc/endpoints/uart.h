@@ -2,6 +2,7 @@
 #define __UART_H
 
 #include "serial.h"
+#include <signal.h>
 
 class uart_t: public endpoint_t
 {
