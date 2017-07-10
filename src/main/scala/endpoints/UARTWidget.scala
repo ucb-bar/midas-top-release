@@ -44,7 +44,9 @@ class UARTWidget(div: Int = 542)(implicit p: Parameters) extends EndpointWidget(
   val sTxIdle :: sTxWait :: sTxData :: sTxBreak :: Nil = Enum(UInt(), 4)
   val txState = RegInit(sTxIdle)
   val txData = Reg(UInt(8.W))
+  // iterate through bits in byte to deserialize
   val (txDataIdx, txDataWrap) = Counter(txState === sTxData && fire, 8)
+  // iterate using div to convert clock rate to baud
   val (txBaudCount, txBaudWrap) = Counter(txState === sTxWait && fire, div)
   val (txSlackCount, txSlackWrap) = Counter(txState === sTxIdle && target.txd === 0.U && fire, 4)
 
@@ -80,18 +82,43 @@ class UARTWidget(div: Int = 542)(implicit p: Parameters) extends EndpointWidget(
   txfifo.io.enq.bits  := txData
   txfifo.io.enq.valid := txDataWrap
 
-  // TODO: do not handle console inputs for now
-  target.rxd := UInt(1, 1)
-  rxfifo.io.enq.valid := false.B
+  val sRxIdle :: sRxStart :: sRxData :: Nil = Enum(UInt(), 3)
+  val rxState = RegInit(sRxIdle)
+  // iterate using div to convert clock rate to baud
+  val (rxBaudCount, rxBaudWrap) = Counter(fire, div)
+  // iterate through bits in byte to deserialize
+  val (rxDataIdx, rxDataWrap) = Counter(rxState === sRxData && fire && rxBaudWrap, 8)
+
+  target.rxd := 1.U
+  switch(rxState) {
+    is(sRxIdle) {
+      target.rxd := 1.U
+      when (rxBaudWrap && rxfifo.io.deq.valid) {
+        rxState := sRxStart
+      }
+    }
+    is(sRxStart) {
+      target.rxd := 0.U
+      when(rxBaudWrap) {
+        rxState := sRxData
+      }
+    }
+    is(sRxData) {
+      target.rxd := (rxfifo.io.deq.bits >> rxDataIdx)(0)
+      when(rxDataWrap && rxBaudWrap) {
+        rxState := sRxIdle
+      }
+    }
+  }
+  rxfifo.io.deq.ready := (rxState === sRxData) && rxDataWrap && rxBaudWrap && fire
 
   genROReg(txfifo.io.deq.bits, "out_bits")
   genROReg(txfifo.io.deq.valid, "out_valid")
   Pulsify(genWORegInit(txfifo.io.deq.ready, "out_ready", false.B), pulseLength = 1)
-  /*
+
   genWOReg(rxfifo.io.enq.bits, "in_bits")
   Pulsify(genWORegInit(rxfifo.io.enq.valid, "in_valid", false.B), pulseLength = 1)
   genROReg(rxfifo.io.enq.ready, "in_ready")
-  */
 
   genROReg(!tFire, "done")
   genROReg(stall, "stall")
