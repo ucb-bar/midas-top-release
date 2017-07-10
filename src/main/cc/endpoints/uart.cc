@@ -7,7 +7,7 @@
  *
  * Reset to zero once consumed.
  */
-char specialchar;
+char specialchar = 0;
 
 void sighand(int s) {
     switch (s) {
