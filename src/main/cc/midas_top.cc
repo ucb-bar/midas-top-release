@@ -49,9 +49,17 @@ void midas_top_t::loadmem() {
     fesvr->recv_loadmem_data(buf, loadmem.size);
 #ifdef LOADMEM
     const size_t mem_data_bytes = MEM_DATA_CHUNK * sizeof(data_t);
+#ifndef _WIN32
+#define WRITE_MEM(addr, src) \
+    mpz_t data; \
+    mpz_init(data); \
+    mpz_import(data, mem_data_bytes / sizeof(uint32_t), -1, sizeof(uint32_t), 0, 0, src); \
+    write_mem(addr, data)
+#else
 #define WRITE_MEM(addr, src) \
     biguint_t data((uint32_t*)(src), mem_data_bytes / sizeof(uint32_t)); \
     write_mem(addr, data)
+#endif
 #else
     const size_t mem_data_bytes = MEM_DATA_BITS / 8;
 #define WRITE_MEM(addr, src) \
@@ -67,18 +75,28 @@ void midas_top_t::loadmem() {
   }
 }
 
+#ifndef ENABLE_SNAPSHOT
+#define GET_DELTA step_size
+#else
+#define GET_DELTA std::min(step_size, tracelen)
+#endif
+
 void midas_top_t::loop(size_t step_size) {
-  size_t delta = step_size;
+  size_t delta = GET_DELTA;
+  size_t delta_sum = 0;
   size_t profile_count = 0;
 
   do {
     if (fesvr->busy()) {
       step(1, false);
-      if (--delta == 0) delta = step_size;
+      delta_sum += 1;
+      if (--delta == 0) delta = GET_DELTA;
     } else {
       step(delta, false);
-      delta = step_size;
+      delta_sum += delta;
+      delta = GET_DELTA;
     }
+
     bool _done;
     do {
       _done = done();
@@ -88,27 +106,29 @@ void midas_top_t::loop(size_t step_size) {
       }
     } while(!_done);
 
-    for (auto e: endpoints) {
-      if (serial_t* s = dynamic_cast<serial_t*>(e)) {
-        s->work();
+    if (delta_sum == step_size || fesvr->busy()) {
+      for (auto e: endpoints) {
+        if (serial_t* s = dynamic_cast<serial_t*>(e)) {
+          s->work();
+        }
       }
-    }
-    loadmem();
+      loadmem();
 
-    // Every profile_interval iterations, collect state from all fpga models
-    profile_count++;
-    if (profile_interval != 0 && profile_count == profile_interval){
-      for (auto mod: fpga_models) {
-        mod->profile();
+      // Every profile_interval iterations, collect state from all fpga models
+      profile_count++;
+      if (profile_interval != 0 && profile_count == profile_interval) {
+        for (auto mod: fpga_models) {
+          mod->profile();
+        }
+        profile_count = 0;
       }
-      profile_count = 0;
+
+      if (delta_sum == step_size) delta_sum = 0;
     }
   } while (!fesvr->done() && cycles() <= max_cycles);
 }
 
 void midas_top_t::run(size_t step_size) {
-  // set_tracelen(TRACE_MAX_LEN);
-
   for (auto e: fpga_models) {
     e->init();
   }

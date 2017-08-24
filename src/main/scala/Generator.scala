@@ -64,8 +64,8 @@ trait HasGenerator extends GeneratorApp {
       .asInstanceOf[LazyModule]).module
 
   override lazy val names: ParsedInputNames = {
-    require(args.size == 8, "Usage: sbt> run [midas | strober | replay] " +
-      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString HostConfig")
+    require(args.size >= 8, "Usage: sbt> run [midas | strober | replay] " +
+      "TargetDir TopModuleProjectName TopModuleName ConfigProjectName ConfigNameString HostConfig [MacroLib]")
     ParsedInputNames(
       targetDir = args(1),
       topModuleProject = args(2),
@@ -161,16 +161,17 @@ trait HasTestSuites {
 object MidasTopGenerator extends HasGenerator with HasTestSuites {
   val longName = names.topModuleProject
   val testDir = new File(names.targetDir)
+  val libFile = if (args.size > 8) Some(new File(args(8))) else None
 
   override def addTestSuites = super.addTestSuites(params)
   args.head match {
     case "midas" =>
-      midas.MidasCompiler(targetGenerator, testDir)(hostParams)
+      midas.MidasCompiler(targetGenerator, testDir, libFile)(hostParams)
     case "strober" =>
-      midas.MidasCompiler(targetGenerator, testDir)(
+      midas.MidasCompiler(targetGenerator, testDir, libFile)(
         hostParams alterPartial ({ case midas.EnableSnapshot => true }))
     case "replay" =>
-      strober.replay.Compiler(targetGenerator, testDir)
+      strober.replay.Compiler(targetGenerator, testDir, libFile)
   }
   generateTestSuiteMakefrags
 }

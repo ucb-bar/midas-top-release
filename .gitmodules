@@ -28,3 +28,9 @@
 [submodule "sifive-blocks"]
 	path = sifive-blocks
 	url = https://github.com/sifive/sifive-blocks.git
+[submodule "plsi"]
+	path = plsi
+	url = https://github.com/ucb-bar/plsi.git
+[submodule "barstools"]
+	path = barstools
+	url = https://github.com/ucb-bar/barstools.git

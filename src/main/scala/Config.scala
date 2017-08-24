@@ -54,7 +54,7 @@ class MidasTopConfig extends Config((site, here, up) => {
  })
 
 class DefaultExampleConfig extends Config(new MidasTopConfig ++
-  new WithSerialAdapter ++  new WithNBigCores(1) ++ new rocketchip.BaseConfig)
+  new WithSerialAdapter ++ new WithoutTLMonitors ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)
 class DefaultBOOMConfig extends Config(new MidasTopConfig ++ new WithSerialAdapter ++ new boom.BOOMConfig)
 class SmallBOOMConfig extends Config(new MidasTopConfig ++ new WithSerialAdapter ++ new boom.SmallBoomConfig)
 
