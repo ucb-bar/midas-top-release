@@ -21,7 +21,7 @@
 	url = git@github.com:ucb-bar/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr
-	url = git@github.com:firesim/riscv-fesvr.git
+	url = git@github.com:riscv/riscv-fesvr.git
 [submodule "testchipip"]
 	path = testchipip
 	url = https://github.com/ucb-bar/testchipip.git

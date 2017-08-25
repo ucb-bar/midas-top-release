@@ -1,5 +1,4 @@
 #include "midas_tsi.h"
-#include "biguint.h"
 
 int midas_tsi_t::host_thread(void *arg)
 {

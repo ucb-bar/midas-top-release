@@ -49,17 +49,11 @@ void midas_top_t::loadmem() {
     fesvr->recv_loadmem_data(buf, loadmem.size);
 #ifdef LOADMEM
     const size_t mem_data_bytes = MEM_DATA_CHUNK * sizeof(data_t);
-#ifndef _WIN32
 #define WRITE_MEM(addr, src) \
     mpz_t data; \
     mpz_init(data); \
     mpz_import(data, mem_data_bytes / sizeof(uint32_t), -1, sizeof(uint32_t), 0, 0, src); \
     write_mem(addr, data)
-#else
-#define WRITE_MEM(addr, src) \
-    biguint_t data((uint32_t*)(src), mem_data_bytes / sizeof(uint32_t)); \
-    write_mem(addr, data)
-#endif
 #else
     const size_t mem_data_bytes = MEM_DATA_BITS / 8;
 #define WRITE_MEM(addr, src) \
