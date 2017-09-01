@@ -11,12 +11,9 @@ TARGET_CONFIG ?= RocketChip2GExtMem
 # TARGET_CONFIG ?= SmallBOOM2GExtMem
 
 PLATFORM ?= zynq
-#PLATFORM ?= catapult
 #PLATFORM ?= f1
 PLATFORM_PROJECT ?= midas.top
-ifeq ($(PLATFORM),catapult)
-PLATFORM_CONFIG ?= CatapultConfig
-else ifeq ($(PLATFORM), f1)
+ifeq ($(PLATFORM), f1)
 PLATFORM_CONFIG ?= F1Config
 else
 PLATFORM_CONFIG ?= ZynqConfig
@@ -166,19 +163,14 @@ $(PLATFORM): $($(PLATFORM)) $(output_dir)/$(DESIGN).chain
 
 # Compile Frontend Server
 host = $(if $(filter zynq, $(PLATFORM)),arm-xilinx-linux-gnueabi,)
-so = $(if $(filter catapult, $(PLATFORM)),.dll,.so)
 fesvr_dir = $(base_dir)/riscv-fesvr
 
-ifeq ($(PLATFORM),catapult)
-$(fesvr_dir)/build/libfesvr$(so): CXX := g++
-$(fesvr_dir)/build/libfesvr$(so): CXXFLAGS :=
-endif
-$(fesvr_dir)/build/libfesvr$(so): $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
+$(fesvr_dir)/build/libfesvr.so: $(wildcard $(fesvr_dir)/fesvr/*.cc) $(wildcard $(fesvr_dir)/fesvr/*.h)
 	mkdir -p $(fesvr_dir)/build
 	cd $(fesvr_dir)/build && $(fesvr_dir)/configure --host=$(host)
 	$(MAKE) -C $(fesvr_dir)/build
 
-$(output_dir)/libfesvr$(so): $(fesvr_dir)/build/libfesvr$(so)
+$(output_dir)/libfesvr.so: $(fesvr_dir)/build/libfesvr.so
 	mkdir -p $(output_dir)/build
 	cp $< $@
 
@@ -187,7 +179,7 @@ ifeq ($(PLATFORM),zynq)
 zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
 	midas_top_zynq midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
 
-$(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
+$(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(output_dir)/build
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) zynq PLATFORM=zynq DESIGN=$(DESIGN) \
@@ -223,40 +215,12 @@ fpga: $(output_dir)/boot.bin
 # This omits the boot.bin for use on the cluster
 endif
 
-ifeq ($(PLATFORM),catapult)
-# Compile midas-fesvr in cygwin only
-fesvr_files = channel midas_fesvr mmap_fesvr
-fesvr_h = $(addprefix $(driver_dir)/fesvr/, $(addsuffix .h, $(fesvr_files)))
-fesvr_o = $(addprefix $(output_dir)/build/, $(addsuffix .o, $(fesvr_files)))
-$(fesvr_o): $(output_dir)/build/%.o: $(driver_dir)/fesvr/%.cc $(fesvr_h)
-	mkdir -p $(output_dir)/build
-	g++ -I$(fesvr_dir) -std=c++11 -D__addr_t_defined -c -o $@ $<
-
-fesvr = $(output_dir)/midas-fesvr
-$(fesvr): $(fesvr_o) $(output_dir)/libfesvr$(so)
-	g++ -L$(output_dir) -Wl,-rpath,$(output_dir) -lfesvr -o $@ $(fesvr_o)
-
-fesvr: $(fesvr)
-
-# Compile Driver
-catapult_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_catapult midas_top fesvr/channel endpoints/serial endpoints/uart))
-
-$(catapult): $(verilog) $(header) $(catapult_cc) $(driver_h) $(midas_cc) $(midas_h) $(fesvr) $(DRIVER)
-	mkdir -p $(output_dir)/build
-	cp $(header) $(output_dir)/build/
-	$(MAKE) -C $(simif_dir) catapult PLATFORM=catapult DESIGN=$(DESIGN) \
-	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) CXX=cl AR=lib \
-	DRIVER="$(catapult_cc) $(DRIVER)" \
-	CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
-endif
-
 ifeq ($(PLATFORM),f1)
 # Compile Driver
 f1_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
 	midas_top_f1 midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
 
-$(f1): $(verilog) $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
+$(f1): $(verilog) $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(output_dir)/build
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) f1 PLATFORM=f1 DESIGN=$(DESIGN) \
@@ -265,7 +229,7 @@ $(f1): $(verilog) $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output
 	CXXFLAGS="$(CXXFLAGS) -D SIMULATION_XSIM -I$(RISCV)/include -I$(base_dir)/riscv-fesvr" \
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 
-f1-fpga: $(verilog) $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr$(so)
+f1-fpga: $(verilog) $(header) $(f1_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(output_dir)/build
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) f1 PLATFORM=f1 DESIGN=$(DESIGN) \
