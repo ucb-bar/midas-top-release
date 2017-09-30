@@ -17,7 +17,6 @@ import boom._
 
 class ZynqConfigWithMemModel extends Config(new WithMidasTopEndpoints ++ new WithDDR3FIFOMAS ++ new ZynqConfig)
 class ZynqConfig extends Config(new WithMidasTopEndpoints ++ new midas.ZynqConfig)
-class F1Config extends Config(new WithMidasTopEndpoints ++ new midas.F1Config)
 
 class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
   case EndpointKey => up(EndpointKey) ++ core.EndpointMap(Seq(
