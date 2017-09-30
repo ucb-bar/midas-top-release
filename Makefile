@@ -31,25 +31,28 @@ include Makefrag-args
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
+addon_dir = $(base_dir)/midas/addons/src/main/cc
 driver_dir = $(base_dir)/src/main/cc
 generated_dir ?= $(base_dir)/generated-src/$(PLATFORM)/$(TARGET_CONFIG)
 output_dir ?= $(base_dir)/output/$(PLATFORM)/$(TARGET_CONFIG)
 
-driver_h = $(shell find $(driver_dir) -name ".h")
 midas_h = $(shell find $(simif_dir) -name "*.h")
 midas_cc = $(shell find $(simif_dir) -name "*.cc")
-emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_emul midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
-replay_h = $(simif_dir)/sample/sample.h $(wildcard $(simif_dir)/replay/*.h)
-replay_cc = $(simif_dir)/sample/sample.cc $(wildcard $(simif_dir)/replay/*.cc)
+addon_h = $(shell find $(addon_dir) -name "*.h")
+addon_cc = $(addprefix $(addon_dir)/, $(addsuffix .cc, \
+	fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
+driver_h = $(shell find $(driver_dir) -name "*.h") $(addon_h)
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top midas_top_emul)) $(addon_cc)
 emul_v = $(base_dir)/midas/src/main/verilog/emul_$(PLATFORM).v
 replay_v = $(base_dir)/midas/src/main/verilog/replay.v
+
+CXXFLAGS := $(CXXFLAGS) -I$(addon_dir) -I$(RISCV)/include
 
 SBT ?= sbt
 SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 src_path = src/main/scala
-submodules = . chisel firrtl barstools/macros midas \
+submodules = . chisel firrtl barstools/macros midas midas/addons \
 	rocket-chip rocket-chip/hardfloat boom testchipip sifive-blocks
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
@@ -93,10 +96,10 @@ endif
 verilator = $(generated_dir)/V$(DESIGN)
 verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 
-$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS) -I$(RISCV)/include
+$(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS)
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(verilog) $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h)
+$(verilator): $(verilog) $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(addon_h)
 	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -113,7 +116,7 @@ verilator-debug: $(verilator_debug)
 vcs = $(generated_dir)/$(DESIGN)
 vcs_debug = $(generated_dir)/$(DESIGN)-debug
 
-$(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include -I$(RISCV)/include
+$(vcs) $(vcs_debug): export CXXFLAGS := $(CXXFLAGS) -I$(VCS_HOME)/include
 $(vcs) $(vcs_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
 $(vcs): $(verilog) $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(emul_v)
@@ -171,16 +174,14 @@ $(output_dir)/libfesvr.so: $(fesvr_dir)/build/libfesvr.so
 
 ifeq ($(PLATFORM),zynq)
 # Compile Driver
-zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, \
-	midas_top_zynq midas_top fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
+zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top midas_top_zynq)) $(addon_cc)
 
 $(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(output_dir)/build
 	cp $(header) $(output_dir)/build/
 	$(MAKE) -C $(simif_dir) zynq PLATFORM=zynq DESIGN=$(DESIGN) \
 	GEN_DIR=$(output_dir)/build OUT_DIR=$(output_dir) DRIVER="$(zynq_cc)" \
-	CXX="$(host)-g++" \
-	CXXFLAGS="$(CXXFLAGS) -I$(RISCV)/include" \
+	CXX="$(host)-g++" CXXFLAGS="$(CXXFLAGS)" \
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 
 # Generate Bitstream
@@ -213,6 +214,9 @@ endif
 ######################
 #   Sample Replays   #
 ######################
+
+replay_h = $(simif_dir)/sample/sample.h $(wildcard $(simif_dir)/replay/*.h)
+replay_cc = $(simif_dir)/sample/sample.cc $(wildcard $(simif_dir)/replay/*.cc)
 
 script_dir = $(base_dir)/midas/src/main/resources/replay
 replay_sample = $(script_dir)/replay-samples.py

@@ -53,7 +53,8 @@ void midas_top_t::loadmem() {
     mpz_t data; \
     mpz_init(data); \
     mpz_import(data, mem_data_bytes / sizeof(uint32_t), -1, sizeof(uint32_t), 0, 0, src); \
-    write_mem(addr, data)
+    write_mem(addr, data); \
+    mpz_clear(data);
 #else
     const size_t mem_data_bytes = MEM_DATA_BITS / 8;
 #define WRITE_MEM(addr, src) \
