@@ -31,28 +31,28 @@ include Makefrag-args
 
 base_dir = $(abspath .)
 simif_dir = $(base_dir)/midas/src/main/cc
-addon_dir = $(base_dir)/midas/addons/src/main/cc
+target_dir = $(base_dir)/midas/target-specific/rocketchip/src/main/cc
 driver_dir = $(base_dir)/src/main/cc
 generated_dir ?= $(base_dir)/generated-src/$(PLATFORM)/$(TARGET_CONFIG)
 output_dir ?= $(base_dir)/output/$(PLATFORM)/$(TARGET_CONFIG)
 
 midas_h = $(shell find $(simif_dir) -name "*.h")
 midas_cc = $(shell find $(simif_dir) -name "*.cc")
-addon_h = $(shell find $(addon_dir) -name "*.h")
-addon_cc = $(addprefix $(addon_dir)/, $(addsuffix .cc, \
+target_h = $(shell find $(target_dir) -name "*.h")
+target_cc = $(addprefix $(target_dir)/, $(addsuffix .cc, rocketchip \
 	fesvr/midas_tsi fesvr/midas_fesvr endpoints/serial endpoints/uart))
-driver_h = $(shell find $(driver_dir) -name "*.h") $(addon_h)
-emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top midas_top_emul)) $(addon_cc)
+driver_h = $(shell find $(driver_dir) -name "*.h") $(target_h)
+emul_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_emul)) $(target_cc)
 emul_v = $(base_dir)/midas/src/main/verilog/emul_$(PLATFORM).v
 replay_v = $(base_dir)/midas/src/main/verilog/replay.v
 
-CXXFLAGS := $(CXXFLAGS) -I$(addon_dir) -I$(RISCV)/include
+CXXFLAGS := $(CXXFLAGS) -I$(target_dir) -I$(RISCV)/include
 
 SBT ?= sbt
 SBT_FLAGS ?= -J-Xmx2G -J-Xss8M -J-XX:MaxPermSize=256M
 
 src_path = src/main/scala
-submodules = . chisel firrtl barstools/macros midas midas/addons \
+submodules = . chisel firrtl barstools/macros midas midas/target-specific/rocketchip \
 	rocket-chip rocket-chip/hardfloat boom testchipip sifive-blocks
 chisel_srcs = $(foreach submodule,$(submodules),$(shell find $(base_dir)/$(submodule)/$(src_path) -name "*.scala"))
 
@@ -99,7 +99,7 @@ verilator_debug = $(generated_dir)/V$(DESIGN)-debug
 $(verilator) $(verilator_debug): export CXXFLAGS := $(CXXFLAGS)
 $(verilator) $(verilator_debug): export LDFLAGS := $(LDFLAGS) -L$(RISCV)/lib -lfesvr -Wl,-rpath,$(RISCV)/lib
 
-$(verilator): $(verilog) $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(addon_h)
+$(verilator): $(verilog) $(header) $(emul_cc) $(driver_h) $(midas_cc) $(midas_h) $(target_h)
 	$(MAKE) -C $(simif_dir) verilator PLATFORM=$(PLATFORM) DESIGN=$(DESIGN) \
 	GEN_DIR=$(generated_dir) DRIVER="$(emul_cc)"
 
@@ -174,7 +174,7 @@ $(output_dir)/libfesvr.so: $(fesvr_dir)/build/libfesvr.so
 
 ifeq ($(PLATFORM),zynq)
 # Compile Driver
-zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top midas_top_zynq)) $(addon_cc)
+zynq_cc = $(addprefix $(driver_dir)/, $(addsuffix .cc, midas_top_zynq)) $(target_cc)
 
 $(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(output_dir)/libfesvr.so
 	mkdir -p $(output_dir)/build

@@ -1,5 +1,5 @@
 #include "simif_zynq.h"
-#include "midas_top.h"
+#include "rocketchip.h"
 #include "fesvr/midas_tsi.h"
 
 class midas_top_zynq_t:
