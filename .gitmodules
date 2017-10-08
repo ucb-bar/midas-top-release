@@ -14,7 +14,7 @@
 	path = boom
 	url = git@github.com:ucb-bar/riscv-boom.git
 [submodule "midas-zynq"]
-	path = midas-zynq
+	path = platforms/zynq
 	url = git@github.com:ucb-bar/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr

@@ -188,7 +188,7 @@ $(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(ou
 
 # Generate Bitstream
 BOARD     ?= zc706_MIG
-board_dir := $(base_dir)/midas-$(PLATFORM)/$(BOARD)
+board_dir := $(base_dir)/platforms/$(PLATFORM)/$(BOARD)
 boot_bin := fpga-images-$(BOARD)/boot.bin
 proj_name = midas_$(BOARD)_$(TARGET_CONFIG)
 
