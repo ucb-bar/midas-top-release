@@ -64,6 +64,8 @@ header = $(generated_dir)/$(DESIGN)-const.h
 default: $(verilog)
 verilog: $(verilog)
 compile: $(verilog)
+test:
+	$(SBT) $(SBT_FLAGS) test
 
 include Makefrag-plsi
 macro_lib = $(if $(MACRO_LIB),$(technology_macro_lib),)
@@ -287,6 +289,7 @@ mostlyclean:
 clean:
 	rm -rf $(generated_dir) $(output_dir)
 
+.PHONY: test
 .PHONY: verilog compile verilator verilator-debug vcs vcs-debug
 .PHONY: $(PLATFORM) mostlyclean clean
 .PHONY: vcs-rtl replay-rtl vcs-syn replay-syn vcs-par replay-par

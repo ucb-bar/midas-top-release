@@ -37,9 +37,14 @@ abstract class MidasTopTestSuite(
 
   lazy val design = LazyModule(new MidasTop()(param)).module
   val chirrtl = firrtl.Parser parse (chisel3.Driver emit (() => design))
+  lib match {
+    case Some(f) if !f.exists =>
+      (Seq("make", s"${f.getAbsolutePath}") ++ makeArgs).!
+    case _ =>
+  }
   midas.MidasCompiler(chirrtl, design.io, genDir, lib)(platformParams)
   if (platformParams(midas.EnableSnapshot))
-    strober.replay.Compiler(chirrtl, design.io, genDir, lib, true)
+    strober.replay.Compiler(chirrtl, design.io, genDir, lib)
   addTestSuites(param)
 
   val makefrag = new FileWriter(new File(genDir, "midas.top.d"))

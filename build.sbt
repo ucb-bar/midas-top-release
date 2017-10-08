@@ -2,6 +2,7 @@ lazy val commonSettings = Seq(
   organization := "berkeley",
   version      := "1.0",
   scalaVersion := "2.11.7",
+  parallelExecution in Test := false,
   libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
 )
 
