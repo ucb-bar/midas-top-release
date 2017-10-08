@@ -20,5 +20,4 @@ lazy val mdf        = RootProject(file("barstools/mdf/scalalib"))
 lazy val barstools  = project in file("barstools/macros") settings commonSettings dependsOn (chisel, mdf)
 lazy val midas      = project settings commonSettings dependsOn (rocketchip, barstools)
 lazy val endpoints  = project in file("midas/target-specific/rocketchip") settings commonSettings dependsOn (midas, testchipip, sifiveip)
-lazy val midasmem   = project in file("midas-memory-model") settings commonSettings dependsOn midas
-lazy val midastop   = (project in file(".")) settings commonSettings dependsOn (midasmem, boom, endpoints)
+lazy val midastop   = (project in file(".")) settings commonSettings dependsOn (boom, endpoints)
