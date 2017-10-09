@@ -2,6 +2,7 @@ lazy val commonSettings = Seq(
   organization := "berkeley",
   version      := "1.0",
   scalaVersion := "2.11.7",
+  parallelExecution in Test := false,
   libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
 )
 
@@ -18,5 +19,5 @@ lazy val boom       = project settings commonSettings dependsOn rocketchip
 lazy val mdf        = RootProject(file("barstools/mdf/scalalib"))
 lazy val barstools  = project in file("barstools/macros") settings commonSettings dependsOn (chisel, mdf)
 lazy val midas      = project settings commonSettings dependsOn (rocketchip, barstools)
-lazy val midasmem   = project in file("midas-memory-model") settings commonSettings dependsOn midas
-lazy val midastop   = (project in file(".")) settings commonSettings dependsOn (midasmem, boom, sifiveip, testchipip)
+lazy val endpoints  = project in file("midas/target-specific/rocketchip") settings commonSettings dependsOn (midas, testchipip, sifiveip)
+lazy val midastop   = (project in file(".")) settings commonSettings dependsOn (boom, endpoints)

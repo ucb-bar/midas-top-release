@@ -10,14 +10,11 @@
 [submodule "chisel"]
 	path = chisel
 	url = git@github.com:ucb-bar/chisel3.git
-[submodule "midas-memory-model"]
-	path = midas-memory-model
-	url = git@github.com:ucb-bar/midas-memory-model.git
 [submodule "riscv-boom"]
 	path = boom
 	url = git@github.com:ucb-bar/riscv-boom.git
 [submodule "midas-zynq"]
-	path = midas-zynq
+	path = platforms/zynq
 	url = git@github.com:ucb-bar/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr

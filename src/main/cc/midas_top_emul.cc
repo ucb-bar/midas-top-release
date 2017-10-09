@@ -1,14 +1,14 @@
 #include "simif_emul.h"
-#include "midas_top.h"
+#include "rocketchip.h"
 #include "fesvr/midas_tsi.h"
 
 class midas_top_emul_t:
   public simif_emul_t,
-  public midas_top_t
+  public rocketchip_t
 {
 public:
   midas_top_emul_t(int argc, char** argv, fesvr_proxy_t* fesvr):
-    midas_top_t(argc, argv, fesvr) { }
+    rocketchip_t(argc, argv, fesvr) { }
 };
 
 int main(int argc, char** argv) {

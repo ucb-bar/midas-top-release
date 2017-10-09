@@ -1,8 +1,6 @@
 package midas
 package top
 
-import dram_midas._
-
 import config.{Parameters, Config}
 import tile._
 import rocket._
@@ -15,9 +13,7 @@ import rocketchip._
 import testchipip._
 import boom._
 
-class ZynqConfigWithMemModel extends Config(new WithMidasTopEndpoints ++ new WithDDR3FIFOMAS ++ new ZynqConfig)
 class ZynqConfig extends Config(new WithMidasTopEndpoints ++ new midas.ZynqConfig)
-class F1Config extends Config(new WithMidasTopEndpoints ++ new midas.F1Config)
 
 class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
   case EndpointKey => up(EndpointKey) ++ core.EndpointMap(Seq(
@@ -25,21 +21,6 @@ class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
     new endpoints.SimUART
   ))
 }) ++ new WithSerialAdapter)
-
-
-// Memory model configurations
-class WithLBPipe extends Config((site, here ,up) => {
-  case MemModelKey => Some((p: Parameters) => new MidasMemModel(
-    new LatencyPipeConfig(new BaseParams(maxReads = 16, maxWrites = 16)))(p))
-})
-
-class WithDDR3FIFOMAS extends Config((_,_,_) => {
-    case MemModelKey => Some((p: Parameters) => new MidasMemModel(
-      new FIFOMASConfig(
-        dramKey = DRAMOrganizationKey(maxBanks = 8, maxRanks = 1, maxRows = (1 << 17)),
-        baseParams = new BaseParams(maxReads = 16, maxWrites = 16)))(p))
-  }
-)
 
 class MidasTopConfig extends Config((site, here, up) => {
    case RocketTilesKey => up(RocketTilesKey) map (tile => tile.copy(
