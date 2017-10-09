@@ -4,11 +4,11 @@
 
 class midas_top_zynq_t:
   public simif_zynq_t,
-  public midas_top_t
+  public rocketchip_t
 {
 public:
   midas_top_zynq_t(int argc, char** argv, fesvr_proxy_t* fesvr):
-    midas_top_t(argc, argv, fesvr) { }
+    rocketchip_t(argc, argv, fesvr) { }
 };
 
 int main(int argc, char** argv) {
