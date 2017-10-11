@@ -64,6 +64,10 @@ header = $(generated_dir)/$(DESIGN)-const.h
 default: $(verilog)
 verilog: $(verilog)
 compile: $(verilog)
+
+sbt:
+	$(SBT) $(SBT_FLAGS)
+
 test:
 	$(SBT) $(SBT_FLAGS) test
 
