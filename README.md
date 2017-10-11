@@ -1,90 +1,112 @@
 # MidasTop
 An example use of midas with rocket-chip as the target design.
 
-## <a name = "started"></a> Getting Started
+## <a name = "start"></a> Get Started
 
     $ git clone https://github.com/ucb-bar/midas-top.git
     $ cd midas-top
-    $ git submodule update --init --recursive
+    # Initialize the submodules
+    $ ./setup.sh
 
-## <a name = "compilation"></a> Compilation
-First of all, specify your target design in `src/main/scala`, like any other RocketChip SoC project(if necessary).
-To compile rocket-chip in Midas or Strober, run:
+With the following `make` commands, you can enable RTL state snapshotting with `STROBER=1`. Also, `MACRO_LIB=1` is required for power modeling to transform technology-independent macro blocks to technology-dependent macro blocks. We also used [the RocketChip-specific implementations in MIDAS](https://github.com/ucb-bar/midas-release/tree/release/target-specific/rocketchip).
 
-    $ make compile [STROBER=1] [DESIGN=<your design>] [CONFIG=<your config>]
-    
-Also, this will compile rocket-chip with Midas with no snapshotting capability by default,
-so give `STORBER = 1` to compile rocket-chip for sample-based energy simulation with Strober.
-`DESIGN` and `CONFIG` are `MidasTop` and `DefaultExampleConfig` by default respectively,
-so pass your design and config through `DESIGN` and `CONFIG`, respectively.
+## <a name = "compile"></a> Generate Verilog for FPGA Simulation
 
-## <a name = "emulation"></a> Emulation
-To compile emulators for testing, run:
+First of all, define your own chip in [src/main/scala](src/main/scala), like any other RocketChip SoC projects (if necessary).
+
+To compile RocketChip, run:
+
+    $ make compile [DESIGN=<your design>] [CONFIG=<your config>] [STROBER=1] [MACRO_LIB=1]
+
+`DESIGN` and `CONFIG` are `MidasTop` and `DefaultExampleConfig` by default, respectively.
+
+## <a name = "emulation"></a> Run Verilator/VCS tests
+
+You may want to test FPGA simulators before running them in FPGA. To compile Verilator/VCS for testing, run:
 
     $ make <verilog | vcs | verilog-debug | vcs-debug> [DESIGN=<your design>] [CONFIG=<your config>]
     
-To run emulation, you have to specify a `EMUL` parameter, which is verilator by default.
-For example, to run the benchmark tests:
+To run tests, specify a `EMUL` parameter, which is verilator otherwise. For example, to run the benchmark tests:
     
     $ make run-bmark-tests [EMUL = <verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
     
 You can also run an individual test as follows:
 
     # Without waveform
-    $ make <abspath to root directory>/output/<test_name>.out [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
+    $ make <abspath to root directory>/output/<platform>/<your config>/<test_name>.out [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
     # With waveform
-    $ make <abspath to root directory>/output/<test_name>.vpd [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
+    $ make <abspath to root directory>/output/<platform>/<your config>/<test_name>.vpd [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
  
-## <a name = "fpga"></a> FPGA Simulation
-The fpga flow is largely adopted from [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git), so refer to it for more information.
+## <a name = "fpga"></a> Run FPGA Simulation
 
-To build an FPGA simulator, run:
+### Xilinx Zynq
 
-    $ make fpga [STROBE=1] [BOARD=<zc706|zynq|zybo>] [DESIGN=<your design>] [CONFIG=<your config>]
+For the following commands, the default board is the `zc706_MIG`, but you can also select it with `BOARD` in the `make` command. The output files are generated in `output/zynq/<your config>/`.
 
-This will produce the following files to `output/<CONFIG>`.
-* `boot.bin`: boot image for the board. Copy this file to the SD card.
-* `midas_wrapper.bit`: bitstream to be loaded through JTAG.
-The default board is the ZC706 (using the ARM's memory system). This can be overridden by setting make variable `BOARD`.
+For ZC706 with MIG, we generate bitstream `midas_wrapper.bit`, which will be loaded through JTAG:
 
-We also need to compile the simulation driver (the master program that controls the simulator's execution). To compile the driver, run:
+    $ make bitstream [STROBER=1] [BOARD=<zc706_MIG>] [DESIGN=<your design>] [CONFIG=<your config>]
+
+To generate `boot.bin`, which will be copied to the SD card, run:
+
+    $ make fpga [STROBER=1] [BOARD=<zc706|zedboard|zybo>] [DESIGN=<your design>] [CONFIG=<your config>]
+
+To compile the simulation driver, run:
 
     $ make zynq [STROBER=1] [DESIGN=<your design>] [CONFIG=<your config>]
 
-This will produce the following files in `output/<CONFIG>`:
-* `MidasTop-zynq`: driver binary file.
-* `MidasTop.chain`: chain meta file. It is only generated when strober is to be used.
-* `libfesvr.so`: frontend server library.
+This will produce the following files:
+* `MidasTop-zynq`: driver executable.
+* `MidasTop.chain`: scan chain information (Strober only)
+* `libfesvr.so`: riscv-fesvr library.
 
-`MidasTop-zynq`, `MidasTop.chain` should be copied to the same working directory on the ARM host of the zynq host, while `libfesvr.so` must be copied to `/usr/local/lib`.
-For detailed instructions, refer to [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git).
+`MidasTop-zynq`, `MidasTop.chain` should be copied to the same working directory on the ARM host of the Xilinx Zynq board, while `libfesvr.so` must be copied to `/usr/local/lib`.
 
-Finally, we are ready to run a midas simulation on the FPGA. `MidasTop-zynq` has the same command line interface as `fesvr-zynq`.
+Finally, we are ready to run a MIDAS simulation on the FPGA. `MidasTop-zynq` has the same command line interface as `fesvr-zynq`.
 
-
-    $ ./MidasTop-zynq pk <binary file>
+    $ ./MidasTop-zynq +mm_MEM_LATENCY=<DRAM latency> [+sample=<sample file>] pk <binary file>
 
 To boot linux, you'll need a bbl instance with your desired payload. A ramdisk image with all of the relevant files and an appropriate init script.
 
-    $ ./MidasTop-zynq <bbl-instance>
+    $ ./MidasTop-zynq +mm_MEM_LATENCY=<DRAM latency> [+sample=<sample file>] <bbl-instance>
 
-## <a name = "replay"></a> Sample Replays
-Here, we assume that we get samples either from [emulation tests](emulation) or from [FPGA simulation](fpga)
-with [the Strober compilation](compilation). First, we need to compile vcs for sample replays as follows:
+The FPGA flow is largely adopted from [ucb-bar/fpga-zynq](https://github.com/ucb-bar/fpga-zynq.git), so refer to it for more platform-specific information.
 
-    $ make vcs-replay [SAMPLE=<your sample>] [DESIGN=<your design>] [CONFIG=<your config>]
+## <a name = "replay"></a> Replay Samples in RTL/Gate-level Simulation
+
+Once Strober energy modeling is enabled in the previous steps, random RTL state snapshots are generated at the end of simulation (`MidasTop.sample` by default). To generate Verilog for sample replays, run:
+
+    $ make compile-replay [DESIGN=<your design>] [CONFIG=<your config>] [STROBER=1] [MACRO_LIB=1]
     
-You can pass your samples by a `SAMPLE` prameter, and then this command will also replay your samples.
+This makes sure the RTL to be replayed is the same as the RTL simulated in FPGA. To compile RTL simulation, run:
 
-To replay samples from each emulation test, run:
+    $ make vcs-rtl [DESIGN=<your design>] [CONFIG=<your config>]
+    
+Sample snapshots are replayed in RTL simulation as follows:
 
-    $ make <abspath to root directory>/output/<test_name>-replay.vpd [EMUL=<verilog | vcs>] [DESIGN=<your design>] [CONFIG=<your config>]
+    $ make replay-rtl SAMPLE=<sample file> [DESIGN=<your design>] [CONFIG=<your config>]
+
+For power modeling, `MACRO_LIB=1` is required in this step as well as the previous steps. The following commands interact with [HAMMER](https://github.com/ucb-bar/hammer.git) to run proper CAD tools. For power estimation with RTL simulation, run:
+
+    $ make replay-rtl-pwr SAMPLE=<sample file> [DESIGN=<your design>] [CONFIG=<your config>]
+    
+To compile gate-level simulation with a post-synthesis design, run:
+
+    $ make vcs-syn [DESIGN=<your design>] [CONFIG=<your config>]
+    
+For power estimation with post-synthesis gate-level simulation, run:
+
+    $ make replay-syn SAMPLE=<sample file> [DESIGN=<your design>] [CONFIG=<your config>]
     
 ## <a name = "integration"></a> Integration Tests
-First, add your own tests in `src/main/test` if necessary. Next, simply run:
+First, add your own tests in `src/main/test` if necessary. Launch `sbt` with:
 
-    $ sbt test
+    $ make sbt
     
-This will run all integration tests in parallel. Or, you can run a single test suite as follows:
+For individual tests, run:
 
-    $ sbt testOnly MidasTop.<test suite name>
+    > testOnly <test suite name>
+    
+For integration tests, just run:
+
+    > test
