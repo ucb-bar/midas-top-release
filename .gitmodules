@@ -3,7 +3,7 @@
 	url = git@github.com:ucb-bar/rocket-chip.git
 [submodule "midas"]
 	path = midas
-	url = git@github.com:ucb-bar/midas.git
+	url = git@github.com:ucb-bar/midas-release.git
 [submodule "firrtl"]
 	path = firrtl
 	url = git@github.com:ucb-bar/firrtl.git
