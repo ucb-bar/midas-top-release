@@ -1,24 +1,24 @@
 [submodule "rocket-chip"]
 	path = rocket-chip
-	url = git@github.com:ucb-bar/rocket-chip.git
+	url = https://github.com/ucb-bar/rocket-chip.git
 [submodule "midas"]
 	path = midas
-	url = git@github.com:ucb-bar/midas-release.git
+	url = https://github.com/ucb-bar/midas-release.git
 [submodule "firrtl"]
 	path = firrtl
-	url = git@github.com:ucb-bar/firrtl.git
+	url = https://github.com/ucb-bar/firrtl.git
 [submodule "chisel"]
 	path = chisel
-	url = git@github.com:ucb-bar/chisel3.git
+	url = https://github.com/ucb-bar/chisel3.git
 [submodule "riscv-boom"]
 	path = boom
-	url = git@github.com:ucb-bar/riscv-boom.git
+	url = https://github.com/ucb-bar/riscv-boom.git
 [submodule "midas-zynq"]
 	path = platforms/zynq
-	url = git@github.com:ucb-bar/midas-zynq.git
+	url = https://github.com/ucb-bar/midas-zynq.git
 [submodule "fesvr"]
 	path = riscv-fesvr
-	url = git@github.com:riscv/riscv-fesvr.git
+	url = https://github.com/riscv/riscv-fesvr.git
 [submodule "testchipip"]
 	path = testchipip
 	url = https://github.com/ucb-bar/testchipip.git
