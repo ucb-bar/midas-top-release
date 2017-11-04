@@ -6,9 +6,9 @@ PROJECT ?= midas.top
 DESIGN ?= MidasTop
 
 TARGET_PROJECT ?= midas.top
-TARGET_CONFIG ?= RocketChip2GExtMem
-# TARGET_CONFIG ?= DefaultBOOM2GExtMem
-# TARGET_CONFIG ?= SmallBOOM2GExtMem
+TARGET_CONFIG ?= RocketChip1GExtMem
+# TARGET_CONFIG ?= DefaultBOOM1GExtMem
+# TARGET_CONFIG ?= SmallBOOM1GExtMem
 
 PLATFORM ?= zynq
 PLATFORM_PROJECT ?= midas.top
