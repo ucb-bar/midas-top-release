@@ -25,9 +25,10 @@
 [submodule "sifive-blocks"]
 	path = sifive-blocks
 	url = https://github.com/sifive/sifive-blocks.git
-[submodule "plsi"]
+[submodule "hammer"]
 	path = plsi
-	url = https://github.com/ucb-bar/plsi.git
+	url = https://github.com/ucb-bar/hammer.git
+	branch = 0.0
 [submodule "barstools"]
 	path = barstools
 	url = https://github.com/ucb-bar/barstools.git
