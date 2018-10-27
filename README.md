@@ -1,5 +1,6 @@
 # MidasTop
-An example use of midas with rocket-chip as the target design.
+
+## Deprecation Warning: This repository is deprecated. See [FireSim](https://github.com/firesim/firesim) for UCB-BAR's most update MIDAS-based simulation environment. Until Zynq host platforms are supported in FireSim, please use the original MIDAS-Top repository [here](https://github.com/ucb-bar/midas-top).
 
 ## <a name = "start"></a> Get Started
 
