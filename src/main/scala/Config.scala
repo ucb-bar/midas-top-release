@@ -14,10 +14,12 @@ import uncore.devices.NTiles
 import rocketchip._
 import testchipip._
 import boom._
+import widgets.{MidasLLCKey, MidasLLCParameters}
 
 class ZynqConfig extends Config(new WithMidasTopEndpoints ++ new midas.ZynqConfig)
 
 class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
+  case MidasLLCKey => Some(MidasLLCParameters(8, 4096, 128)) // <= 4MiB
   case EndpointKey => up(EndpointKey) ++ core.EndpointMap(Seq(
     new endpoints.SimSerialIO,
     new endpoints.SimUART
@@ -25,15 +27,21 @@ class WithMidasTopEndpoints extends Config(new Config((site, here, up) => {
 }) ++ new WithSerialAdapter)
 
 class MidasTopConfig extends Config((site, here, up) => {
-   case RocketTilesKey => up(RocketTilesKey) map (tile => tile.copy(
-     icache = tile.icache map (_.copy(
-       nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
-     )),
-     dcache = tile.dcache map (_.copy(
-       nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
-     ))
-   ))
- })
+  case RocketTilesKey => up(RocketTilesKey) map (tile => tile.copy(
+    core = tile.core.copy(
+      nPerfCounters = 29,
+      nPerfEvents = 52
+    ),
+    icache = tile.icache map (_.copy(
+      nWays = 8, // 32KiB
+      nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
+    )),
+    dcache = tile.dcache map (_.copy(
+      nWays = 8, // 32KiB
+      nTLBEntries = 32 // TLB reach = 32 * 4KB = 128KB
+    ))
+  ))
+})
 
 class DefaultExampleConfig extends Config(new MidasTopConfig ++
   new WithSerialAdapter ++ new WithoutTLMonitors ++ new WithNBigCores(1) ++ new rocketchip.BaseConfig)

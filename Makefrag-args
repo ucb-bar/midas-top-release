@@ -3,11 +3,9 @@
 # some sort of file-based configuration scheme
 
 timeout_cycles = 100000000
-# Number of inner loop iterations (fesvr evaluations) between profile FPGA models
-# (See midas_top.cc)
-PROFILE_INTERVAL ?= +profile-interval=1000
 
 # Model arguments. Arguments must be provided for all programmable registers.
 
 # Simple latency pipe arguments
-SW_SIM_ARGS ?= +mm_MEM_LATENCY=10
+# SW_SIM_ARGS ?= +mm_MEM_LATENCY=10
+SW_SIM_ARGS ?= +dramsim +mm-args=$(base_dir)/mem-args.txt

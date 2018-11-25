@@ -191,10 +191,10 @@ $(zynq): $(verilog) $(header) $(zynq_cc) $(driver_h) $(midas_cc) $(midas_h) $(ou
 	LDFLAGS="$(LDFLAGS) -L$(output_dir) -lfesvr -Wl,-rpath,/usr/local/lib"
 
 # Generate Bitstream
-BOARD     ?= zc706_MIG
+BOARD     ?= zc706
 board_dir := $(base_dir)/platforms/$(PLATFORM)/$(BOARD)
-boot_bin := fpga-images-$(BOARD)/boot.bin
-proj_name = midas_$(BOARD)_$(TARGET_CONFIG)
+boot_bin  := fpga-images-$(BOARD)/boot.bin
+proj_name  = midas_$(BOARD)_$(TARGET_CONFIG)
 
 $(board_dir)/src/verilog/$(TARGET_CONFIG)/$(shim).v: $(verilog)
 	$(MAKE) -C $(board_dir) clean DESIGN=$(TARGET_CONFIG)
