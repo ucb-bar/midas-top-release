@@ -41,3 +41,6 @@
 [submodule "benchmarks/initramfs_linux_flow"]
 	path = benchmarks/initramfs
 	url = https://github.com/ccelio/initramfs_linux_flow.git
+[submodule "benchmarks/ccbench"]
+	path = benchmarks/ccbench
+	url = https://github.com/ucb-bar/ccbench.git

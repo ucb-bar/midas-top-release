@@ -154,6 +154,37 @@ $(output_dir)/%.vpd: $(output_dir)/% $(EMUL)-debug
 	./$(notdir $($(EMUL)_debug)) $< +sample=$<.sample +waveform=$@ +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS) \
 	$(disasm) $(patsubst %.vpd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
 
+# Run caches experiment
+benchmarks_dir = $(base_dir)/benchmarks
+pk = $(benchmarks_dir)/pk
+caches = $(benchmarks_dir)/caches
+spike_caches_report = $(benchmarks_dir)/spike-caches.report.txt
+midas_caches_report = $(benchmarks_dir)/midas-caches.report.txt
+
+$(benchmarks_dir)/ccbench/caches/caches: %: %.c
+	$(MAKE) -C $(dir $@) ARCH=riscv
+
+$(caches): $(benchmarks_dir)/ccbench/caches/caches
+	cp $< $@
+
+$(pk): $(RISCV)/riscv64-unknown-elf/bin/pk
+	cp $< $@
+
+$(spike_caches_report): $(benchmarks_dir)/caches.sh $(pk) $(caches)
+	echo $(pk)
+	cd $(dir $<) && ./$(notdir $<) \
+	$(RISCV)/bin/spike +sample=$(benchmarks_dir)/caches.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS)
+	mv $(benchmarks_dir)/caches.report.txt $@
+
+$(midas_caches_report): $(benchmarks_dir)/caches.sh $(EMUL) $(pk) $(caches)
+	echo $(pk)
+	cd $(dir $<) && ./$(notdir $<) \
+	$($(EMUL)) +sample=$(benchmarks_dir)/caches.sample +max-cycles=$(timeout_cycles) $(SW_SIM_ARGS)
+	mv $(benchmarks_dir)/caches.report.txt $@
+
+caches-spike: $(spike_caches_report)
+caches-midas: $(midas_caches_report)
+
 ######################
 #   FPGA Simulation  #
 ######################
@@ -293,9 +324,11 @@ mostlyclean:
 clean:
 	rm -rf $(generated_dir) $(output_dir)
 
-.PHONY: test
+.PHONY: default test
 .PHONY: verilog compile verilator verilator-debug vcs vcs-debug
+.PHONY: caches-spike caches-midas
 .PHONY: $(PLATFORM) mostlyclean clean
+.PHONY: compile-replay match
 .PHONY: vcs-rtl replay-rtl vcs-syn replay-syn vcs-par replay-par
 
 .PRECIOUS: $(output_dir)/%.vpd $(output_dir)/%.out $(output_dir)/%.run
